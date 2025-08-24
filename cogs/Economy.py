@@ -10,6 +10,7 @@ import datetime
 from table2ascii import table2ascii as t2a, PresetStyle, Merge
 import matplotlib as mpl
 import matplotlib.patches as patches
+# mpl.use('TkAgg', force=True)
 from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
@@ -19,7 +20,6 @@ from pathlib import Path
 dotenv_path = Path('test.env')
 load_dotenv(dotenv_path=dotenv_path)
 
-mpl.use('TkAgg', force=True)
 print("Switched to:", mpl.get_backend())
 
 leaderboard_channel = int(os.getenv('leaderboard_channel'))
