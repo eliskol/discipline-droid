@@ -1,0 +1,112 @@
+{
+    "makebed": {
+        "long_name": "Bed Making",
+        "alr_done": {
+            "title": "Bed Making Already Recorded",
+            "description": "Make Your Bed Again Tomorrow Morning,"
+        },
+        "just_done": {
+            "title": "Bed Making Recorded",
+            "description": "Start The Day Off Right,"
+        }
+    },
+    "sunlight": {
+        "long_name": "Morning Sun",
+        "alr_done": {
+            "title": "Morning Sun Already Recorded",
+            "description": "Get That Fresh Vitamin D Tomorrow,"
+        },
+        "just_done": {
+            "title": "Morning Sun Recorded",
+            "description": "Your Day Is Looking Bright,"
+        }
+    },
+   "sunriser": {
+        "long_name": "Early Bird",
+        "alr_done": {
+            "title": "Early Bird Already Recorded",
+            "description": "Wake Up Early Again Tomorrow Morning,"
+        },
+        "just_done": {
+            "title": "Early Bird Recorded",
+            "description": "Enjoy Your Day,"
+        }
+    },
+   "meditation": {
+        "long_name": "Meditation",
+        "alr_done": {
+            "title": "Meditation Already Recorded",
+            "description": "Carry This Mindfulness Throughout The Day,"
+        },
+        "just_done": {
+            "title": "Meditation Recorded",
+            "description": "Namaste,"
+        }
+    },
+    "journal": {
+        "long_name": "Journaling",
+        "alr_done": {
+            "title": "Journaling Already Recorded",
+            "description": "Gather Today's Experiences To Analyze Tomorrow,"
+        },
+        "just_done": {
+            "title": "Journaling Recorded",
+            "description": "Know Thyself,"
+        }
+    },
+    "gratitude": {
+        "long_name": "Gratitude",
+        "alr_done": {
+            "title": "Gratitude Already Recorded",
+            "description": "See The Value In The Points Already Earned,"
+        },
+        "just_done": {
+            "title": "Gratitude Recorded",
+            "description": "Never Lose Sight Of The Gifts You've Been Given,"
+        }
+    },
+    "workout": {
+        "long_name": "Workout",
+        "alr_done": {
+            "title": "Workout Already Recorded",
+            "description": "Rest Is Crucial,"
+        },
+        "just_done": {
+            "title": "Workout Recoded",
+            "description": "Get Those Gains,"
+        }
+    },
+    "coldshower": {
+        "long_name": "Cold Shower",
+        "alr_done": {
+            "title": "Cold Shower Already Recorded",
+            "description": "Warm Up,"
+        },
+        "just_done": {
+            "title": "Cold Shower Recorded",
+            "description": "Feel Awake,"
+        }
+    },
+    "reading": {
+        "long_name": "Reading",
+        "alr_done": {
+            "title": "Reading Already Recorded",
+            "description": "But Continue Gaining That Knowledge"
+        },
+        "just_done": {
+            "title": "Reading Recorded",
+            "description": "The Avid Reader Lives A Thousand Lives,"
+        }
+    },
+    "personal": {
+        "long_name": "Personal Goal",
+        "alr_done": {
+            "title": "Personal Goal Already Recorded",
+            "description": "Come Back Tomorrow To Accomplish Your Goal Again,"
+        },
+        "just_done": {
+            "title": "Personal Goal Recorded",
+            "description": "Well Done,"
+        }
+    }
+}
