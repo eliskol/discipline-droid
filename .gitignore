@@ -1,6 +1,6 @@
 *.env
-cogs/Habits Record
-cogs/Habits Record/coldshower.csv
+cogs/Habits\ Record
+cogs/Habits\ Record/coldshower.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
