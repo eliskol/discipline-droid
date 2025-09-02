@@ -4,16 +4,8 @@ import os
 import json
 import datetime
 from dateutil.relativedelta import relativedelta
+from AccountabilityPartnership import AccountabiltyPartnership
 
-
-class AccountabiltyPartnership:
-    def __init__(self, original_member, invited_member):
-        #dm invited member
-        pass
-
-    @staticmethod
-    def fetch_accountability_partnership(member_obj):
-        pass
 
 client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
@@ -57,6 +49,9 @@ class Accountability(commands.Cog):
                 await ctx.send(f"{ctx.author}, you have already invited {invited_member_obj} to an Accountability Partnership.")
             elif invited_member_id in self.open_invitations and self.open_invitations[int(invited_member_id)] == int(ctx.author.id):
                 # members have succesfully invited each other to Accountability Partnership
+                await ctx.send(f"<@{invited_member_id}> and <@{ctx.author.id}>, you have begun an Accountability Partnership!")
+                del self.open_invitations[invited_member_id]
+                self.save_open_invitations()
                 self.start_accountability_partnership(invited_member_id, ctx.author.id)
             else:
                 await ctx.send(f"{ctx.author} has invited {invited_member_obj} to participate in an Accountability Partnership!")
