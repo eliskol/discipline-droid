@@ -4,7 +4,7 @@ import os
 import json
 import datetime
 from dateutil.relativedelta import relativedelta
-from AccountabilityPartnership import AccountabiltyPartnership
+from AccountabilityPartnership import AccountabilityPartnership
 
 
 client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
@@ -70,11 +70,28 @@ class Accountability(commands.Cog):
                 await ctx.send(f"{ctx.author}, you have declined the accountability invitation from {original_member}.")
                 self.save_open_invitations()
 
+        elif args[0].lower() == "log":
+            if len(args) == 1:
+                await ctx.send("You forgot to input arguments!")
+                return
+            accountabilitypartnership = AccountabilityPartnership.from_member_id(ctx.author.id)
+            if args[1] == "today":
+                accountabilitypartnership.log_today()
+                ctx.send("You have successfully logged your Accountability Partnership for today!")
+            elif args[2] == "yesterday":
+                accountabilitypartnership.log_yesterday()
+                ctx.send("You have succesfully logged your Accountability Partnerhip for yesterday!")
+            else:
+                await ctx.send("Please try your command again!")
+
         else:
             await ctx.send("You forgot to input arguments!")
 
-    def start_accountability_partnership(self, original_member, invited_member):
-        pass
+    def start_accountability_partnership(self, original_member, second_member):
+        AccountabilityPartnership(original_member, second_member, started_by = original_member)
+        AccountabilityPartnership(second_member, original_member, started_by = original_member)
+
+
 
 async def setup(client):
     await client.add_cog(Accountability(client))
