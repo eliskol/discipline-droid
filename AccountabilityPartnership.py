@@ -3,13 +3,13 @@ import datetime
 from pytz import timezone
 
 class AccountabilityPartnership:
-    def __init__(self, primary_member : int, other_member : int, date_started = None, last_date_logged : str = None, last_date_completed = None, started_by = None, new = True):
+    def __init__(self, primary_member : int, other_member : int, date_started : str | None = None, last_date_logged : str | None = None, last_date_completed : str | None = None, started_by : int | None = None, new = True):
         self.date_started : str = date_started if date_started else str(datetime.datetime.now(timezone('US/Pacific')).date())
         self.primary_member : int = primary_member
         self.other_member : int = other_member
-        self.last_date_logged : str = last_date_logged
-        self.last_date_completed : str = last_date_completed
-        self.started_by : int = started_by
+        self.last_date_logged = last_date_logged
+        self.last_date_completed = last_date_completed
+        self.started_by = started_by
         if new: self.save_partnership()
 
     @classmethod
