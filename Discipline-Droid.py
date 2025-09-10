@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from datetime import date
 import datetime
 import pandas as pd
+from pytz import timezone
 
 from dotenv import load_dotenv
 from pathlib import Path
@@ -113,7 +114,7 @@ async def send_leaderboard_message():
 async def send_startup_message():
     channelh = client.get_channel(habit_hub_channel)
     if channelh:
-        todayr = (datetime.datetime.utcnow() -
+        todayr = (datetime.datetime.now(datetime.timezone.utc) -
                   datetime.timedelta(hours=8)).date()
         today = todayr.isoformat()
         disc = ['coldshower', 'gratitude', 'journal', 'makebed', 'meditation',
@@ -154,8 +155,8 @@ async def send_startup_message():
 
 @tasks.loop(hours=24)
 async def daily_message():
-    now = datetime.datetime.now()
-    midnight = now.replace(hour=8, minute=1, second=0, microsecond=0)
+    now = datetime.datetime.now(timezone("US/Pacific"))
+    midnight = now.replace(hour=0, minute=1, second=0, microsecond=0)
     if now > midnight:
         midnight += timedelta(days=1)
     delay = (midnight - now).total_seconds()
@@ -164,8 +165,7 @@ async def daily_message():
     await asyncio.sleep(delay)  # Wait until 12:01 AM
     channelh = client.get_channel(habit_hub_channel)
     if channelh:
-        todayr = (datetime.datetime.utcnow() -
-                  datetime.timedelta(hours=8)).date()
+        todayr = datetime.datetime.now(timezone("US/Pacific")).date()
         today = todayr.isoformat()
         disc = ['coldshower', 'gratitude', 'journal', 'makebed', 'meditation',
                 'personal', 'reading', 'sunlight', 'sunriser', 'workout']
