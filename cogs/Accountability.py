@@ -30,7 +30,7 @@ class Accountability(commands.Cog):
         print(f"{__name__} is online!")
 
     @commands.command(aliases=["a"], pass_context=True)
-    async def accountability(self, ctx, *args):
+    async def accountability(self, ctx, *args: str):
         if args[0].lower() == "start" and len(args) > 1:
             print(args)
             invited_member_obj = await get_member_obj_from_arg(ctx, args[1])
@@ -74,13 +74,31 @@ class Accountability(commands.Cog):
             if len(args) == 1:
                 await ctx.send("You forgot to input arguments!")
                 return
-            accountabilitypartnership = AccountabilityPartnership.from_member_id(ctx.author.id)
+            ap = AccountabilityPartnership.from_member_id(ctx.author.id)
+            print(f"Got AP object {ap}")
+            if ap is None:
+                await ctx.send("Couldn't find your Accountability Partnership! Are you sure you're in an active one?")
+                return
             if args[1] == "today":
-                accountabilitypartnership.log_today()
-                ctx.send("You have successfully logged your Accountability Partnership for today!")
-            elif args[2] == "yesterday":
-                accountabilitypartnership.log_yesterday()
-                ctx.send("You have succesfully logged your Accountability Partnerhip for yesterday!")
+                print(f"Received log today command from {ctx.author}")
+                status = ap.log_today()
+                print(f"Status was {status}")
+                if status == "already logged":
+                    await ctx.send("You have already logged for today!")
+                elif status == "successful":
+                    await ctx.send("You have successfully logged your Accountability Partnership for today!")
+                else:
+                    await ctx.send("You forgot to log yesterday!")
+            elif args[1] == "yesterday":
+                print(f"Received log yesterday command from {ctx.author}")
+                status = ap.log_yesterday()
+                print(f"Status was {status}")
+                if status == "already logged":
+                    await ctx.send("You have already logged for yesterday!")
+                elif status == "successful":
+                    await ctx.send("You have successfully logged your Accountability Partnership for yesterday!")
+                else:
+                    await ctx.send("You forgot to log the day before yesterday!")
             else:
                 await ctx.send("Please try your command again!")
 
