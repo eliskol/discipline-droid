@@ -46,6 +46,9 @@ class AccountabilityPartnership:
             False,
         )
 
+    def get_other_member_ap(self):
+        return self.from_member_id(self.other_member)
+
     def save_partnership(self):
         with open("cogs/accountability.json", "r") as read:
             partnerships_dict = json.load(read)
@@ -67,6 +70,11 @@ class AccountabilityPartnership:
         if self.last_date_logged == str(yesterday) or self.date_started == str(today):
             self.last_date_logged = str(today)
             self.save_partnership()
+            other_member_ap = self.from_member_id(self.other_member)
+            if other_member_ap is None:
+                print("something is really messed up (log_today function)")
+                return "missing log"
+
             return "successful"
         return "missing log"
 
