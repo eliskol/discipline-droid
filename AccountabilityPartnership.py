@@ -32,7 +32,6 @@ class AccountabilityPartnership:
         print(f"Fetching AccountabilityPartnership object for member with id {member_id}")
         with open("cogs/accountability.json", "r") as read:
             partnerships_dict = json.load(read)
-            print(f"Just read accountablity.json and got the following:\n{partnerships_dict}")
         if str(member_id) not in partnerships_dict.keys():
             return None
         partnership = partnerships_dict[str(member_id)]
@@ -60,7 +59,7 @@ class AccountabilityPartnership:
             "started_by": self.started_by,
         }
         with open("cogs/accountability.json", "w") as write:
-            json.dump(partnerships_dict, write)
+            json.dump(partnerships_dict, write, indent=2)
 
     def log_today(self) -> str:
         today = datetime.datetime.now(timezone("US/Pacific")).date()
@@ -69,12 +68,9 @@ class AccountabilityPartnership:
             return "already logged"
         if self.last_date_logged == str(yesterday) or self.date_started == str(today):
             self.last_date_logged = str(today)
-            self.save_partnership()
-            other_member_ap = self.from_member_id(self.other_member)
-            if other_member_ap is None:
-                print("something is really messed up (log_today function)")
-                return "missing log"
-
+            self.save_partnership() # possibly redundant since disburse_points calls update_last_date_completed which saves partnership
+            print(f"Saved partnership after updating last_date_logged")
+            self.disburse_points()
             return "successful"
         return "missing log"
 
@@ -87,6 +83,8 @@ class AccountabilityPartnership:
         if last_date_logged == yesterday - datetime.timedelta(1) or self.date_started == str(yesterday):
             self.last_date_logged = str(yesterday)
             self.save_partnership()
+            print(f"Saved partnership after updating last_date_logged")
+            self.disburse_points()
             return "successful"
         return "missing log"
 
@@ -94,3 +92,51 @@ class AccountabilityPartnership:
         if string is None: return datetime.date(1, 1, 1)
         split = string.split("-")
         return datetime.date(*map(int, split))
+
+    def update_last_date_completed(self):
+        other_ap = self.get_other_member_ap()
+        if other_ap is None:
+            print(f"There has been an error in update_last_date_completed inside the AP for user {self.primary_member}.")
+            return
+        elif self.last_date_logged is None and other_ap.last_date_logged is None:
+            return
+        elif self.last_date_logged is None: # other_ap.last_date_logged cannot possibly be None now
+            self.last_date_completed = other_ap.last_date_logged
+            other_ap.last_date_completed = other_ap.last_date_logged
+        elif other_ap.last_date_logged is None: # self.last_date_logged cannot possibly be None now
+            self.last_date_completed = self.last_date_logged
+            other_ap.last_date_completed = self.last_date_logged
+        else: # neither self.last_date_logged nor other_ap.last_date_logged are None
+            self.last_date_completed = min(self.last_date_logged, other_ap.last_date_logged)
+            other_ap.last_date_completed = min(self.last_date_logged, other_ap.last_date_logged)
+        print(f"self.last_date_completed is now {self.last_date_completed}")
+        self.save_partnership()
+        other_ap.save_partnership()
+
+    def disburse_points(self): # should only be called when a log is successful
+        print("inside disburse_points now ")
+        date_started = self.date_obj_from_str(self.date_started)
+        if self.last_date_completed is not None:
+            old_last_date_completed = self.date_obj_from_str(str(self.last_date_completed))
+            print(f"About to call update_last_date_completed")
+            self.update_last_date_completed()
+            new_last_date_completed = self.date_obj_from_str(self.last_date_completed)
+            num_days_completed_since_last_update = (new_last_date_completed - old_last_date_completed).days
+            # total_num_days_completed = (new_last_date_completed - date_started).days
+        else:
+            num_days_completed_since_last_update = (new_last_date_completed - date_started).days
+        print(f"Calculated that {num_days_completed_since_last_update} days have been completed since last update. Will disburse pts now.")
+        points_to_add = num_days_completed_since_last_update * 2
+        self.add_points_to_member(self.primary_member, points_to_add)
+        self.add_points_to_member(self.other_member, points_to_add)
+        print(f"Added {points_to_add} points to {self.primary_member} and {self.other_member}")
+
+    def add_points_to_member(self, member_id: int, points_to_add : int | float):
+        with open("cogs/eco.json", "r") as f:
+            user_eco = json.load(f)
+        if str(member_id) not in user_eco:
+            user_eco[str(member_id)] = {}
+            user_eco[str(member_id)]["Growth Points"] = 0
+        user_eco[str(member_id)]["Growth Points"] += points_to_add
+        with open("cogs/eco.json", "w") as f:
+            json.dump(user_eco, f, indent=2)

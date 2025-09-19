@@ -91,6 +91,7 @@ class Accountability(commands.Cog):
                     if other_ap is None: await ctx.send("There's been a glitch. Please contact Elias.")
                     elif ap.date_obj_from_str(ap.last_date_logged) > ap.date_obj_from_str(other_ap.last_date_logged):
                         # send reminder
+                        print(f"Other partner last_date_logged is {other_ap.last_date_logged}")
                         other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
                         await other_member_obj.send(f"{other_member_obj}, your Accountability Partner has logged for today!\nPlease log today to complete the day and extend your streak!")
                 else:
@@ -103,6 +104,13 @@ class Accountability(commands.Cog):
                     await ctx.send("You have already logged for yesterday!")
                 elif status == "successful":
                     await ctx.send("You have successfully logged your Accountability Partnership for yesterday!")
+                    other_ap = ap.get_other_member_ap()
+                    if other_ap is None: await ctx.send("There's been a glitch. Please contact Elias.")
+                    elif ap.date_obj_from_str(ap.last_date_logged) > ap.date_obj_from_str(other_ap.last_date_logged):
+                        # send reminder
+                        print(f"Other partner last_date_logged is {other_ap.last_date_logged}")
+                        other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
+                        await other_member_obj.send(f"{other_member_obj}, your Accountability Partner has logged for yesterday!\nPlease log yesterday to complete the day and extend your streak!")
                 else:
                     await ctx.send("You forgot to log the day before yesterday!")
             else:
