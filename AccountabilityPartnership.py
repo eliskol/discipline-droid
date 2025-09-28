@@ -25,6 +25,7 @@ class AccountabilityPartnership:
         self.last_date_completed: str | None = last_date_completed
         self.started_by = started_by
         if new:
+            print("Saving new Accountability Partnership")
             self.save_partnership()
 
     @classmethod
@@ -98,14 +99,14 @@ class AccountabilityPartnership:
         if other_ap is None:
             print(f"There has been an error in update_last_date_completed inside the AP for user {self.primary_member}.")
             return
-        elif self.last_date_logged is None and other_ap.last_date_logged is None:
+        elif self.last_date_logged is None or other_ap.last_date_logged is None:
             return
-        elif self.last_date_logged is None: # other_ap.last_date_logged cannot possibly be None now
-            self.last_date_completed = other_ap.last_date_logged
-            other_ap.last_date_completed = other_ap.last_date_logged
-        elif other_ap.last_date_logged is None: # self.last_date_logged cannot possibly be None now
-            self.last_date_completed = self.last_date_logged
-            other_ap.last_date_completed = self.last_date_logged
+        # elif self.last_date_logged is None: # other_ap.last_date_logged cannot possibly be None now
+        #     self.last_date_completed = other_ap.last_date_logged
+        #     other_ap.last_date_completed = other_ap.last_date_logged
+        # elif other_ap.last_date_logged is None: # self.last_date_logged cannot possibly be None now
+        #     self.last_date_completed = self.last_date_logged
+            # other_ap.last_date_completed = self.last_date_logged
         else: # neither self.last_date_logged nor other_ap.last_date_logged are None
             self.last_date_completed = min(self.last_date_logged, other_ap.last_date_logged)
             other_ap.last_date_completed = min(self.last_date_logged, other_ap.last_date_logged)
@@ -116,20 +117,19 @@ class AccountabilityPartnership:
     def disburse_points(self): # should only be called when a log is successful
         print("inside disburse_points now ")
         date_started = self.date_obj_from_str(self.date_started)
-        if self.last_date_completed is not None:
-            old_last_date_completed = self.date_obj_from_str(str(self.last_date_completed))
-            print(f"About to call update_last_date_completed")
+        points_to_add = 0
+        if self.last_date_completed is None:
             self.update_last_date_completed()
-            new_last_date_completed = self.date_obj_from_str(self.last_date_completed)
-            num_days_completed_since_last_update = (new_last_date_completed - old_last_date_completed).days
-            # total_num_days_completed = (new_last_date_completed - date_started).days
-        else:
-            num_days_completed_since_last_update = (new_last_date_completed - date_started).days
-        print(f"Calculated that {num_days_completed_since_last_update} days have been completed since last update. Will disburse pts now.")
-        points_to_add = num_days_completed_since_last_update * 2
+            if self.last_date_completed is not None:
+                points_to_add = 2
+        elif self.last_date_completed is not None:
+            old_last_date_completed = str(self.last_date_completed)
+            self.update_last_date_completed()
+            if self.last_date_completed != old_last_date_completed:
+                points_to_add = 2
         self.add_points_to_member(self.primary_member, points_to_add)
         self.add_points_to_member(self.other_member, points_to_add)
-        print(f"Added {points_to_add} points to {self.primary_member} and {self.other_member}")
+        print(f"Added {points_to_add} point to {self.primary_member} and {self.other_member}")
 
     def add_points_to_member(self, member_id: int, points_to_add : int | float):
         with open("cogs/eco.json", "r") as f:

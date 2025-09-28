@@ -50,13 +50,14 @@ YREACTION_COMMANDS = {
     "🏋": "yesterdayworkout",
     "🚿": "yesterdaycoldshower",
     "📖": "yesterdayreading",  # Trigger the "reading" command
-    "🌟": "yesterdaypersonal"  # Trigger the "vice" command
+    "🌟": "yesterdaypersonal"
 }
 
 
 @client.event
 async def on_ready():
     await send_leaderboard_message()
+    print(f"boutta call send_startup_message")
     await send_startup_message()  # Send a message at startup
     daily_message.start()  # Start the daily message loop
     print("Bot is connected and ready!")
@@ -94,28 +95,23 @@ async def send_leaderboard_message():
             name="📖 Reading", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
         embed.add_field(name="🌟 Personal Goals",
                         value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
+
+    print(f"last message id is {channell.last_message_id}")
+    previous_message = await channell.fetch_message(channell.last_message_id)
+    if previous_message.author.id == client.application_id and previous_message.created_at.date() == datetime.datetime.now(datetime.timezone.utc).date():
+        await previous_message.delete()
+
     client.embed_message = await channell.send(embed=embed)
-{
-    "🛏️": "makebed",
-    "😎": "sunlight",
-    "🌅": "earlybird",
-    "🧘": "meditation",
-    "📝": "journal",
-    "🙏": "gratitude",
-    "🏋": "workout",
-    "🚿": "coldshower",
-    "📖": "reading",  # Trigger the "reading" command
-    "🌟": "personal"  # Trigger the "vice" command
-}
 
 # Function to send the message at startup
 
-
 async def send_startup_message():
+    print(f"inside send_startup_message now")
     channelh = client.get_channel(habit_hub_channel)
+    print(channelh)
     if channelh:
-        todayr = (datetime.datetime.now(datetime.timezone.utc) -
-                  datetime.timedelta(hours=8)).date()
+        print("inside if")
+        todayr = (datetime.datetime.now(timezone("US/Pacific"))).date()
         today = todayr.isoformat()
         disc = ['coldshower', 'gratitude', 'journal', 'makebed', 'meditation',
                 'personal', 'reading', 'sunlight', 'sunriser', 'workout']
@@ -124,6 +120,8 @@ async def send_startup_message():
             if today != record.columns[-1]:
                 record[today] = 0
                 record.to_csv(f"cogs/Habits Record/{a}.csv", index=False)
+
+        print("line 124")
 
         embed = discord.Embed(
             title="⭐️ Daily Discipline Tracker ⭐️",
@@ -145,7 +143,16 @@ async def send_startup_message():
             "10. 🌟 Complete your personal goal. | 1 pt\n", inline=True
         )
 
+        print("made embed object")
+
+        print(f"boutta get last message in habit hub")
+        print(f"last message id in habit hub is {channelh.last_message_id}")
+        previous_message = await channelh.fetch_message(channelh.last_message_id)
+        if previous_message.author.id == client.application_id and previous_message.created_at.date() == datetime.datetime.now(datetime.timezone.utc).date():
+            await previous_message.delete()
+        print("about to send message")
         message = await channelh.send(embed=embed)
+
 
         for reaction in REACTIONS:
             await message.add_reaction(reaction)
@@ -163,7 +170,7 @@ async def daily_message():
     print(delay)
 
     await asyncio.sleep(delay)  # Wait until 12:01 AM
-    channelh = client.get_channel(habit_hub_channel)
+    channelh : discord.TextChannel = client.get_channel(habit_hub_channel)
     if channelh:
         todayr = datetime.datetime.now(timezone("US/Pacific")).date()
         today = todayr.isoformat()

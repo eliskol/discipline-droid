@@ -10,15 +10,8 @@ class Automation(commands.Cog):
         join_role = discord.utils.get(member.guild.roles, name = 'Wanderer')
 
         await member.add_roles(join_role)
-#%%
-    @commands.Cog.listener()
-    async def on_member_join(self,member):
-        join_role = discord.utils.get(member.guild.roles, name = 'Wanderer')
-
-        await member.add_roles(join_role)
 
 
-    
 #%%
     @commands.Cog.listener()
     async def on_ready(self):
