@@ -31,6 +31,7 @@ class Accountability(commands.Cog):
 
     @commands.command(aliases=["a"], pass_context=True)
     async def accountability(self, ctx, *args: str):
+        if ctx.
         if args[0].lower() == "start" and len(args) > 1:
             print(args)
             invited_member_obj = await get_member_obj_from_arg(ctx, args[1])

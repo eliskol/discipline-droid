@@ -4,9 +4,10 @@ from discord.ext import commands, tasks
 import os
 import asyncio
 from datetime import datetime, timedelta
-from datetime import date
 import datetime
 import pandas as pd
+import json
+from AccountabilityPartnership import AccountabilityPartnership
 from pytz import timezone
 
 from dotenv import load_dotenv
@@ -16,8 +17,9 @@ dotenv_path = Path('test.env')
 load_dotenv(dotenv_path=dotenv_path)
 
 bot_token = os.getenv('bot_token')
-leaderboard_channel = int(os.getenv('leaderboard_channel'))
-habit_hub_channel = int(os.getenv('habit_hub_channel'))
+leaderboard_channel_id = int(os.getenv('leaderboard_channel'))
+habit_hub_channel_id = int(os.getenv('habit_hub_channel'))
+accountability_channel_id = int(os.getenv('accountability_channel'))
 
 
 # Initialize the bot with all intents
@@ -59,13 +61,14 @@ async def on_ready():
     await send_leaderboard_message()
     print(f"boutta call send_startup_message")
     await send_startup_message()  # Send a message at startup
-    daily_message.start()  # Start the daily message loop
+    daily_loop.start()  # Start the daily message loop
+    await check_accountability_partnerships()
     print("Bot is connected and ready!")
 
 
 async def send_leaderboard_message():
-    channell = client.get_channel(leaderboard_channel)
-    if channell:
+    leaderboard_channel = client.get_channel(leaderboard_channel_id)
+    if leaderboard_channel:
         embed = discord.Embed(
             title="🏆Self-Improvement Club Leaders🏆",
             description="Here we commemorate SIC members for their discipline!",
@@ -96,20 +99,21 @@ async def send_leaderboard_message():
         embed.add_field(name="🌟 Personal Goals",
                         value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
 
-    print(f"last message id is {channell.last_message_id}")
-    previous_message = await channell.fetch_message(channell.last_message_id)
+    print(f"last message id is {leaderboard_channel.last_message_id}")
+    previous_message = await leaderboard_channel.fetch_message(leaderboard_channel.last_message_id)
     if previous_message.author.id == client.application_id and previous_message.created_at.date() == datetime.datetime.now(datetime.timezone.utc).date():
         await previous_message.delete()
 
-    client.embed_message = await channell.send(embed=embed)
+    client.embed_message = await leaderboard_channel.send(embed=embed)
 
 # Function to send the message at startup
 
+
 async def send_startup_message():
     print(f"inside send_startup_message now")
-    channelh = client.get_channel(habit_hub_channel)
-    print(channelh)
-    if channelh:
+    habit_channel = client.get_channel(habit_hub_channel_id)
+    print(habit_channel)
+    if habit_channel:
         print("inside if")
         todayr = (datetime.datetime.now(timezone("US/Pacific"))).date()
         today = todayr.isoformat()
@@ -146,13 +150,13 @@ async def send_startup_message():
         print("made embed object")
 
         print(f"boutta get last message in habit hub")
-        print(f"last message id in habit hub is {channelh.last_message_id}")
-        previous_message = await channelh.fetch_message(channelh.last_message_id)
+        print(
+            f"last message id in habit hub is {habit_channel.last_message_id}")
+        previous_message = await habit_channel.fetch_message(habit_channel.last_message_id)
         if previous_message.author.id == client.application_id and previous_message.created_at.date() == datetime.datetime.now(datetime.timezone.utc).date():
             await previous_message.delete()
         print("about to send message")
-        message = await channelh.send(embed=embed)
-
+        message = await habit_channel.send(embed=embed)
 
         for reaction in REACTIONS:
             await message.add_reaction(reaction)
@@ -161,7 +165,7 @@ async def send_startup_message():
 
 
 @tasks.loop(hours=24)
-async def daily_message():
+async def daily_loop():
     now = datetime.datetime.now(timezone("US/Pacific"))
     midnight = now.replace(hour=0, minute=1, second=0, microsecond=0)
     if now > midnight:
@@ -170,7 +174,8 @@ async def daily_message():
     print(delay)
 
     await asyncio.sleep(delay)  # Wait until 12:01 AM
-    channelh : discord.TextChannel = client.get_channel(habit_hub_channel)
+    await check_accountability_partnerships()
+    channelh: discord.TextChannel = client.get_channel(habit_hub_channel_id)
     if channelh:
         todayr = datetime.datetime.now(timezone("US/Pacific")).date()
         today = todayr.isoformat()
@@ -207,9 +212,46 @@ async def daily_message():
 # Restart the loop to ensure it waits until the next time after restart
 
 
-@daily_message.before_loop
+@daily_loop.before_loop
 async def before_daily_message():
     await client.wait_until_ready()
+
+
+async def check_accountability_partnerships():
+    if os.path.exists("cogs/accountability.json"):
+        with open("cogs/accountability.json", "r") as read:
+            accountability_partnerships = json.load(read)
+
+        yesterday_date = datetime.datetime.now(
+            timezone("US/Pacific")).date() - timedelta(days=1)
+        ids_that_failed = []
+
+        for id in accountability_partnerships:
+            partnership = accountability_partnerships[str(id)]
+            ap = AccountabilityPartnership(
+                id,
+                int(partnership["other_member"]),
+                partnership["date_started"],
+                partnership["last_date_logged"],
+                partnership["last_date_completed"],
+                partnership["started_by"],
+                False,
+            )
+            if ap.last_date_logged is None and ap.date_obj_from_str(ap.date_started) < yesterday_date:
+                ids_that_failed.append(id)
+                ids_that_failed.append(ap.other_member)
+                # send message that they failed
+            elif ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
+                ids_that_failed.append(id)
+                ids_that_failed.append(ap.other_member)
+                # send message that they failed
+        for id in ids_that_failed:
+            del accountability_partnerships[id]
+        with open("cogs/accountability.json", "w") as write:
+            json.dump(accountability_partnerships, write)
+    else:
+        with open("cogs/accountability.json", "w") as write:
+            json.dump({}, write)
 
 # Handle reactions to trigger commands
 
