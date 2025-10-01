@@ -218,6 +218,7 @@ async def before_daily_message():
 
 
 async def check_accountability_partnerships():
+    print("checking accountability partnerships now")
     if os.path.exists("cogs/accountability.json"):
         with open("cogs/accountability.json", "r") as read:
             accountability_partnerships = json.load(read)
@@ -227,6 +228,7 @@ async def check_accountability_partnerships():
         ids_that_failed = []
 
         for id in accountability_partnerships:
+            print(f"looking at member with id {id}")
             partnership = accountability_partnerships[str(id)]
             ap = AccountabilityPartnership(
                 id,
@@ -238,20 +240,24 @@ async def check_accountability_partnerships():
                 False,
             )
             if ap.last_date_logged is None and ap.date_obj_from_str(ap.date_started) < yesterday_date:
+                print("failed!")
                 ids_that_failed.append(id)
-                ids_that_failed.append(ap.other_member)
+                # ids_that_failed.append(ap.other_member)
                 # send message that they failed
             elif ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
+                print("failed!")
                 ids_that_failed.append(id)
-                ids_that_failed.append(ap.other_member)
+                # ids_that_failed.append(ap.other_member)
                 # send message that they failed
+            else: print("still in!")
         for id in ids_that_failed:
             del accountability_partnerships[id]
+            print(accountability_partnerships)
         with open("cogs/accountability.json", "w") as write:
-            json.dump(accountability_partnerships, write)
+            json.dump(accountability_partnerships, write, indent=2)
     else:
         with open("cogs/accountability.json", "w") as write:
-            json.dump({}, write)
+            json.dump({}, write, index=2)
 
 # Handle reactions to trigger commands
 

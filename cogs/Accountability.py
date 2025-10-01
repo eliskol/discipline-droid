@@ -7,11 +7,13 @@ from dateutil.relativedelta import relativedelta
 from AccountabilityPartnership import AccountabilityPartnership
 
 
+accountability_channel_id = int(os.getenv('accountability_channel'))
 client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
 class Accountability(commands.Cog):
-    def __init__(self, client):
+    def __init__(self, client, accountability_channel_id):
         self.client = client
+        self.accountability_channel_id = accountability_channel_id
         self.open_invitations = {}
         with open("cogs/open_accountability_invitations.json", "r") as f:
             weird_dict = json.load(f)
@@ -31,7 +33,9 @@ class Accountability(commands.Cog):
 
     @commands.command(aliases=["a"], pass_context=True)
     async def accountability(self, ctx, *args: str):
-        if ctx.
+        if ctx.channel.id != self.accountability_channel_id:
+            print(f"{ctx.author} tried to use an accountability command outside the proper channel!")
+            return
         if args[0].lower() == "start" and len(args) > 1:
             print(args)
             invited_member_obj = await get_member_obj_from_arg(ctx, args[1])
@@ -131,7 +135,7 @@ class Accountability(commands.Cog):
             await ctx.send("You forgot to log the day before yesterday!")
 
 async def setup(client):
-    await client.add_cog(Accountability(client))
+    await client.add_cog(Accountability(client, accountability_channel_id))
 
 async def get_member_obj_from_arg(ctx, arg):
     invited_member_obj = ctx.guild.get_member_named(arg)
