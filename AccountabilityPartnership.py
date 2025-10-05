@@ -1,6 +1,8 @@
 import json
 import datetime
+from datetime import date
 from pytz import timezone
+
 
 
 class AccountabilityPartnership:
@@ -91,8 +93,7 @@ class AccountabilityPartnership:
 
     def date_obj_from_str(self, string: str | None) -> datetime.date:
         if string is None: return datetime.date(1, 1, 1)
-        split = string.split("-")
-        return datetime.date(*map(int, split))
+        return date.fromisoformat(string)
 
     def update_last_date_completed(self):
         other_ap = self.get_other_member_ap()
@@ -118,15 +119,12 @@ class AccountabilityPartnership:
         print("inside disburse_points now ")
         date_started = self.date_obj_from_str(self.date_started)
         points_to_add = 0
-        if self.last_date_completed is None:
-            self.update_last_date_completed()
-            if self.last_date_completed is not None:
-                points_to_add = 2
-        elif self.last_date_completed is not None:
-            old_last_date_completed = str(self.last_date_completed)
-            self.update_last_date_completed()
-            if self.last_date_completed != old_last_date_completed:
-                points_to_add = 2
+        old_last_date_completed = str(self.last_date_completed)
+        self.update_last_date_completed()
+        self.added_points = False
+        if str(self.last_date_completed) != old_last_date_completed: # str() is necessary because it might be None
+            points_to_add = 2
+            self.added_points = True
         self.add_points_to_member(self.primary_member, points_to_add)
         self.add_points_to_member(self.other_member, points_to_add)
         print(f"Added {points_to_add} point to {self.primary_member} and {self.other_member}")
@@ -140,3 +138,11 @@ class AccountabilityPartnership:
         user_eco[str(member_id)]["Growth Points"] += points_to_add
         with open("cogs/eco.json", "w") as f:
             json.dump(user_eco, f, indent=2)
+
+    def get_log_streak(self) -> int:
+        if self.last_date_logged is None: return 0
+        return (date.fromisoformat(self.last_date_logged) - date.fromisoformat(self.date_started)).days + 1
+
+    def get_completion_streak(self) -> int:
+        if self.last_date_completed is None: return 0
+        return (date.fromisoformat(self.last_date_completed) - date.fromisoformat(self.date_started)).days + 1

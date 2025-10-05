@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 import os
 import json
 import datetime
+from datetime import date
 from dateutil.relativedelta import relativedelta
 from AccountabilityPartnership import AccountabilityPartnership
 
@@ -36,7 +37,11 @@ class Accountability(commands.Cog):
         if ctx.channel.id != self.accountability_channel_id:
             print(f"{ctx.author} tried to use an accountability command outside the proper channel!")
             return
-        if args[0].lower() == "start" and len(args) > 1:
+
+        if len(args) == 0:
+            await self.help(ctx, *args)
+
+        elif args[0].lower() == "start" and len(args) > 1:
             print(args)
             invited_member_obj = await get_member_obj_from_arg(ctx, args[1])
 
@@ -83,29 +88,71 @@ class Accountability(commands.Cog):
             print(f"Got AP object {ap}")
             if ap is None:
                 await ctx.send("Couldn't find your Accountability Partnership! Are you sure you're in an active one?")
-                return
-            if args[1] == "today":
+            elif args[1] == "today":
                 await self.log_today(ctx, ap, *args)
             elif args[1] == "yesterday":
                 await self.log_yesterday(ctx, ap, *args)
             else:
                 await ctx.send("Please try your command again!")
 
-        else:
-            await ctx.send("You forgot to input arguments!")
+        elif args[0].lower() == "info":
+            await self.info(ctx, *args)
+
+        elif args[0].lower() == "help":
+            await self.help(ctx, *args)
 
     def start_accountability_partnership(self, original_member, second_member):
         AccountabilityPartnership(original_member, second_member, started_by = original_member)
         AccountabilityPartnership(second_member, original_member, started_by = original_member)
 
-    async def log_today(self, ctx, ap, *args):
+    async def help(self, ctx, *args):
+        print(f"help command invoked by {ctx.author}")
+        help_embed = discord.Embed(title="Accountability Partnership Commands", description="These commands can only be used inside the accountability channel!", color=discord.Color.green())
+        help_embed.add_field(name="help", value="What you are seeing now. Shows info for accountability commands.", inline=False)
+        help_embed.add_field(name="start (user)", value="Invite someone to participate in an Accountability Partnership by typing their username after this command.", inline=False)
+        help_embed.add_field(name="decline", value="Decline someone's Accountability Partnership invitation.", inline=False)
+        help_embed.add_field(name="log today/yesterday", value="Log today or yesterday for your Accountability Partnership.", inline=False)
+        help_embed.add_field(name="info", value="Get information about your current Accountability Partnership.", inline=False)
+        await ctx.send(embed=help_embed)
+
+    async def info(self, ctx, *args):
+        ap = AccountabilityPartnership.from_member_id(ctx.author.id)
+        if ap is None:
+            await ctx.send(f"{ctx.author.mention}, you are not in an active Accountability Partnership!")
+        else:
+            ap_embed = discord.Embed(title="Accountability Partnership", description=f"{ctx.author.mention} and {(await ctx.guild.fetch_member(ap.other_member)).mention}", color=discord.Color.blue())
+            ds_tt = date.fromisoformat(ap.date_started).timetuple()
+            ldl_tt = date.fromisoformat(ap.last_date_logged).timetuple()
+            ldc_tt = date.fromisoformat(ap.last_date_completed).timetuple()
+            ap_embed.add_field(name="Date Started:", value=f"{ds_tt[1]}/{ds_tt[2]}/{ds_tt[0]}")
+            ap_embed.add_field(name="Your Last Day Logged:", value=f"{ldl_tt[1]}/{ldl_tt[2]}/{ldl_tt[0]}")
+            ap_embed.add_field(name="Last Day Completed by Both Partners:", value=f"{ldc_tt[1]}/{ldc_tt[2]}/{ldc_tt[0]}")
+            await ctx.send(embed=ap_embed)
+
+    async def log_today(self, ctx, ap: AccountabilityPartnership, *args):
         print(f"\nReceived log today command from {ctx.author}")
         status = ap.log_today()
         print(f"Status was {status}")
+        log_embed = discord.Embed(title="Accountability Partnership", description=f"<@{ap.primary_member}> and <@{ap.other_member}>")
         if status == "already logged":
-            await ctx.send("You have already logged for today!")
+            # await ctx.send("You have already logged for today!")
+            log_embed.color = discord.Color.red()
+            log_embed.add_field(name=f"Log Status:", value="Already Logged", inline=False)
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
+            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
+            # embed.add_field(name=f"Points Gained:", value=0, inline=False)
         elif status == "successful":
-            await ctx.send("You have successfully logged your Accountability Partnership for today!")
+            log_embed.color = discord.Color.green()
+            # await ctx.send("You have successfully logged your Accountability Partnership for today!")
+            log_embed.add_field(name=f"Log Status:", value="Successful", inline=False)
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
+            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
+            # embed.add_field(name=f"Points Gained:", value={True: 2, False: 0}[ap.added_points], inline=False)
+            if ap.added_points:
+                completed_embed = discord.Embed(title=f"Accountability Day {ap.get_completion_streak()} Completed!", description=f"<@{ap.primary_member}> and <@{ap.other_member}>", color=discord.Color.gold())
+                completed_embed.add_field(name=f"Points Gained by Both Partners Today:", value=2)
+                completed_embed.add_field(name=f"{ctx.author} Total Points:", value=f"{get_points_by_id(ctx.author.id)}")
+                completed_embed.add_field(name=f"{await ctx.guild.fetch_member(ap.other_member)} Total Points:", value=f"{get_points_by_id(ap.other_member)}")
             other_ap = ap.get_other_member_ap()
             if other_ap is None: await ctx.send("There's been a glitch. Please contact Elias.")
             elif ap.date_obj_from_str(ap.last_date_logged) > ap.date_obj_from_str(other_ap.last_date_logged):
@@ -114,7 +161,16 @@ class Accountability(commands.Cog):
                 other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
                 await other_member_obj.send(f"{other_member_obj}, your Accountability Partner has logged for today!\nPlease log today to complete the day and extend your streak!")
         else:
-            await ctx.send("You forgot to log yesterday!")
+            log_embed.color = discord.Color.red()
+            log_embed.add_field(name=f"{ctx.author.mention} Log Status:", value="You forgot to log yesterday!", inline=False)
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
+            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
+            log_embed.add_field(name=f"Points Gained:", value=0, inline=False)
+        await ctx.send(embed=log_embed)
+        try:
+            await ctx.send(embed=completed_embed)
+        except:
+            pass
 
     async def log_yesterday(self, ctx, ap, *args):
         print(f"\nReceived log yesterday command from {ctx.author}")
@@ -145,3 +201,14 @@ async def get_member_obj_from_arg(ctx, arg):
             invited_member_id = arg[2:-1]
             invited_member_obj = await ctx.guild.fetch_member(invited_member_id)
     return invited_member_obj
+
+def get_points_by_id(member_id) -> int:
+    with open("cogs/eco.json", "r") as f:
+        user_eco = json.load(f)
+    if str(member_id) not in user_eco:
+        user_eco[str(member_id)] = {}
+        user_eco[str(member_id)]["Growth Points"] = 0
+
+        with open("cogs/eco.json", "w") as f:
+            json.dump(user_eco, f, indent=4)
+    return user_eco[str(member_id)]["Growth Points"]

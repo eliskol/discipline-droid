@@ -116,6 +116,7 @@ async def send_startup_message():
     if habit_channel:
         print("inside if")
         todayr = (datetime.datetime.now(timezone("US/Pacific"))).date()
+        todaytt = todayr.timetuple()
         today = todayr.isoformat()
         disc = ['coldshower', 'gratitude', 'journal', 'makebed', 'meditation',
                 'personal', 'reading', 'sunlight', 'sunriser', 'workout']
@@ -128,7 +129,7 @@ async def send_startup_message():
         print("line 124")
 
         embed = discord.Embed(
-            title="⭐️ Daily Discipline Tracker ⭐️",
+            title=f"⭐️ Daily Discipline Tracker {todaytt[1]}/{todaytt[2]}/{todaytt[0]} ⭐️",
             description="Hello, everyone! It's time to record your 10 Daily Disciplines!",
             color=discord.Color.green()
         )
@@ -178,6 +179,7 @@ async def daily_loop():
     channelh: discord.TextChannel = client.get_channel(habit_hub_channel_id)
     if channelh:
         todayr = datetime.datetime.now(timezone("US/Pacific")).date()
+        todaytt = todayr.timetuple()
         today = todayr.isoformat()
         disc = ['coldshower', 'gratitude', 'journal', 'makebed', 'meditation',
                 'personal', 'reading', 'sunlight', 'sunriser', 'workout']
@@ -187,7 +189,7 @@ async def daily_loop():
                 record[today] = 0
                 record.to_csv(f"cogs/Habits Record/{a}.csv", index=False)
         embed = discord.Embed(
-            title="⭐️ Daily Discipline Tracker ⭐️",
+            title=f"⭐️ Daily Discipline Tracker {todaytt[1]}/{todaytt[2]}/{todaytt[0]} ⭐️",
             description="Hello, everyone! It's time to record your 10 Daily Disciplines!",
             color=discord.Color.green()
         )
@@ -227,7 +229,12 @@ async def check_accountability_partnerships():
             timezone("US/Pacific")).date() - timedelta(days=1)
         ids_that_failed = []
 
+        accountability_channel = client.get_channel(accountability_channel_id)
+
         for id in accountability_partnerships:
+            if id in ids_that_failed:
+                print(f"{id} already in ids_that_failed")
+                continue
             print(f"looking at member with id {id}")
             partnership = accountability_partnerships[str(id)]
             ap = AccountabilityPartnership(
@@ -239,20 +246,24 @@ async def check_accountability_partnerships():
                 partnership["started_by"],
                 False,
             )
-            if ap.last_date_logged is None and ap.date_obj_from_str(ap.date_started) < yesterday_date:
-                print("failed!")
-                ids_that_failed.append(id)
-                # ids_that_failed.append(ap.other_member)
-                # send message that they failed
-            elif ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
-                print("failed!")
-                ids_that_failed.append(id)
-                # ids_that_failed.append(ap.other_member)
-                # send message that they failed
-            else: print("still in!")
+            if id not in ids_that_failed:
+                print(ids_that_failed)
+                if ap.last_date_logged is None and ap.date_obj_from_str(ap.date_started) < yesterday_date:
+                    print("failed!")
+                    ids_that_failed.append(id)
+                    ids_that_failed.append(str(ap.other_member))
+                    await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended.")
+                    # send message that they failed
+                elif ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
+                    print("failed!")
+                    ids_that_failed.append(id)
+                    ids_that_failed.append(str(ap.other_member))
+                    await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended.")
+                    # send message that they failed
+                else: print("still in!")
+
         for id in ids_that_failed:
             del accountability_partnerships[id]
-            print(accountability_partnerships)
         with open("cogs/accountability.json", "w") as write:
             json.dump(accountability_partnerships, write, indent=2)
     else:
@@ -266,19 +277,11 @@ async def check_accountability_partnerships():
 async def on_reaction_add(reaction, user):
     if user.bot:  # Ignore bot reactions
         return
-
-    # guild = reaction.message.guild
-    # print(guild)
-    # member = guild.get_member(user.id)
-    # print(member)
-    # roler = [role.name for role in member.roles[1:-1]]
-
-    todayr = (datetime.datetime.utcnow()-datetime.timedelta(hours=8)).date()
+    todayr = datetime.datetime.now(timezone("US/Pacific")).date()
     today = todayr.isoformat()
-    yesterdayr = (datetime.datetime.utcnow() -
-                  datetime.timedelta(hours=32)).date()
+    yesterdayr = todayr - datetime.timedelta(days=1)
     yesterday = yesterdayr.isoformat()
-    mdate = (reaction.message.created_at-datetime.timedelta(hours=8)).date()
+    mdate = (reaction.message.created_at.replace(tzinfo=timezone("US/Pacific"))).date()
     mdate = str(mdate)
     # Check if it's a bot message and the emoji is in the reaction commands
     if reaction.message.author == client.user and reaction.emoji in TREACTION_COMMANDS and today == mdate:
