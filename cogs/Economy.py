@@ -73,6 +73,8 @@ class Economy(commands.Cog):
                 json.dump(user_eco, f, indent=4)
         return user_eco
 
+
+
     async def input_discipline(self, discipline, ctx, yesterday=False):
 
         print(f'{ctx.author.name} inputted discipline {discipline}!')

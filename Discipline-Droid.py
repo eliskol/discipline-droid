@@ -13,6 +13,8 @@ from pytz import timezone
 from dotenv import load_dotenv
 from pathlib import Path
 
+from csv_fixer import fix_csvs
+
 dotenv_path = Path('test.env')
 load_dotenv(dotenv_path=dotenv_path)
 
@@ -120,11 +122,13 @@ async def send_startup_message():
         today = todayr.isoformat()
         disc = ['coldshower', 'gratitude', 'journal', 'makebed', 'meditation',
                 'personal', 'reading', 'sunlight', 'sunriser', 'workout']
-        for a in disc:
+        for a in disc: # adding current day to csv file if it isn't there already
             record = pd.read_csv(f"cogs/Habits Record/{a}.csv")
             if today != record.columns[-1]:
                 record[today] = 0
                 record.to_csv(f"cogs/Habits Record/{a}.csv", index=False)
+
+        fix_csvs() # just in case
 
         print("line 124")
 
@@ -249,13 +253,13 @@ async def check_accountability_partnerships():
             if id not in ids_that_failed:
                 print(ids_that_failed)
                 if ap.last_date_logged is None and ap.date_obj_from_str(ap.date_started) < yesterday_date:
-                    print("failed!")
+                    print("failed! failed to log for new partnership")
                     ids_that_failed.append(id)
                     ids_that_failed.append(str(ap.other_member))
                     await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended.")
                     # send message that they failed
-                elif ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
-                    print("failed!")
+                elif ap.last_date_logged is not None and ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
+                    print("failed! failed to log")
                     ids_that_failed.append(id)
                     ids_that_failed.append(str(ap.other_member))
                     await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended.")

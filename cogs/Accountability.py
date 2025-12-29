@@ -101,6 +101,9 @@ class Accountability(commands.Cog):
         elif args[0].lower() == "help":
             await self.help(ctx, *args)
 
+        elif args[0].lower() == "end":
+            await self.end_partnership(ctx, *args)
+
     def start_accountability_partnership(self, original_member, second_member):
         AccountabilityPartnership(original_member, second_member, started_by = original_member)
         AccountabilityPartnership(second_member, original_member, started_by = original_member)
@@ -113,6 +116,7 @@ class Accountability(commands.Cog):
         help_embed.add_field(name="decline", value="Decline someone's Accountability Partnership invitation.", inline=False)
         help_embed.add_field(name="log today/yesterday", value="Log today or yesterday for your Accountability Partnership.", inline=False)
         help_embed.add_field(name="info", value="Get information about your current Accountability Partnership.", inline=False)
+        help_embed.add_field(name="end", value="Ends your current Accountability Partnership if you are in one.", inline=False)
         await ctx.send(embed=help_embed)
 
     async def info(self, ctx, *args):
@@ -122,8 +126,8 @@ class Accountability(commands.Cog):
         else:
             ap_embed = discord.Embed(title="Accountability Partnership", description=f"{ctx.author.mention} and {(await ctx.guild.fetch_member(ap.other_member)).mention}", color=discord.Color.blue())
             ds_tt = date.fromisoformat(ap.date_started).timetuple()
-            ldl_tt = date.fromisoformat(ap.last_date_logged).timetuple()
-            ldc_tt = date.fromisoformat(ap.last_date_completed).timetuple()
+            ldl_tt = date.fromisoformat(ap.last_date_logged).timetuple() if type(ap.last_date_logged) is str else [None] * 3
+            ldc_tt = date.fromisoformat(ap.last_date_completed).timetuple() if type(ap.last_date_completed) is str else [None] * 3
             ap_embed.add_field(name="Date Started:", value=f"{ds_tt[1]}/{ds_tt[2]}/{ds_tt[0]}")
             ap_embed.add_field(name="Your Last Day Logged:", value=f"{ldl_tt[1]}/{ldl_tt[2]}/{ldl_tt[0]}")
             ap_embed.add_field(name="Last Day Completed by Both Partners:", value=f"{ldc_tt[1]}/{ldc_tt[2]}/{ldc_tt[0]}")
@@ -162,7 +166,7 @@ class Accountability(commands.Cog):
                 await other_member_obj.send(f"{other_member_obj}, your Accountability Partner has logged for today!\nPlease log today to complete the day and extend your streak!")
         else:
             log_embed.color = discord.Color.red()
-            log_embed.add_field(name=f"{ctx.author.mention} Log Status:", value="You forgot to log yesterday!", inline=False)
+            log_embed.add_field(name=f"{ctx.author} Log Status:", value="You forgot to log yesterday!", inline=False)
             log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
             log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
             log_embed.add_field(name=f"Points Gained:", value=0, inline=False)
@@ -172,14 +176,28 @@ class Accountability(commands.Cog):
         except:
             pass
 
-    async def log_yesterday(self, ctx, ap, *args):
+    async def log_yesterday(self, ctx, ap: AccountabilityPartnership, *args):
         print(f"\nReceived log yesterday command from {ctx.author}")
         status = ap.log_yesterday()
         print(f"Status was {status}")
+        log_embed = discord.Embed(title="Accountability Partnership", description=f"<@{ap.primary_member}> and <@{ap.other_member}>")
         if status == "already logged":
-            await ctx.send("You have already logged for yesterday!")
+            log_embed.color = discord.Color.red()
+            log_embed.add_field(name=f"Log Status:", value="Already Logged", inline=False)
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
+            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
         elif status == "successful":
-            await ctx.send("You have successfully logged your Accountability Partnership for yesterday!")
+            log_embed.color = discord.Color.green()
+            log_embed.add_field(name=f"Log Status:", value="Successful", inline=False)
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
+            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
+            # embed.add_field(name=f"Points Gained:", value={True: 2, False: 0}[ap.added_points], inline=False)
+            if ap.added_points:
+                completed_embed = discord.Embed(title=f"Accountability Day {ap.get_completion_streak()} Completed!", description=f"<@{ap.primary_member}> and <@{ap.other_member}>", color=discord.Color.gold())
+                completed_embed.add_field(name=f"Points Gained by Both Partners Yesterday:", value=2)
+                completed_embed.add_field(name=f"{ctx.author} Total Points:", value=f"{get_points_by_id(ctx.author.id)}")
+                completed_embed.add_field(name=f"{await ctx.guild.fetch_member(ap.other_member)} Total Points:", value=f"{get_points_by_id(ap.other_member)}")
+            # await ctx.send("You have successfully logged your Accountability Partnership for yesterday!")
             other_ap = ap.get_other_member_ap()
             if other_ap is None: await ctx.send("There's been a glitch. Please contact Elias.")
             elif ap.date_obj_from_str(ap.last_date_logged) > ap.date_obj_from_str(other_ap.last_date_logged):
@@ -187,8 +205,27 @@ class Accountability(commands.Cog):
                 print(f"Other partner last_date_logged is {other_ap.last_date_logged}")
                 other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
                 await other_member_obj.send(f"{other_member_obj}, your Accountability Partner has logged for yesterday!\nPlease log yesterday to complete the day and extend your streak!")
+        await ctx.send(embed=log_embed)
+        try:
+            await ctx.send(embed=completed_embed)
+        except:
+            pass
+
+    async def end_partnership(self, ctx, *args):
+        ap = AccountabilityPartnership.from_member_id(ctx.author.id)
+        if ap is None:
+            await ctx.send("You're not currently in an Accountability Partnership!")
         else:
-            await ctx.send("You forgot to log the day before yesterday!")
+            await ctx.send(f"<@{ap.primary_member}> and <@{ap.other_member}>, your Accountability Partnership has ended.")
+
+            with open("cogs/accountability.json", "r") as read:
+                accountability_partnerships = json.load(read)
+            print("before deletion", accountability_partnerships)
+            del accountability_partnerships[str(ap.primary_member)]
+            del accountability_partnerships[str(ap.other_member)]
+            print("after deletion", accountability_partnerships)
+            with open("cogs/accountability.json", "w") as write:
+                json.dump(accountability_partnerships, write, indent=2)
 
 async def setup(client):
     await client.add_cog(Accountability(client, accountability_channel_id))
