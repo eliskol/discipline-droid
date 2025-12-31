@@ -244,21 +244,21 @@ async def check_accountability_partnerships():
             ap = AccountabilityPartnership(
                 id,
                 int(partnership["other_member"]),
-                partnership["date_started"],
-                partnership["last_date_logged"],
+                partnership["date_list"],
                 partnership["last_date_completed"],
+                partnership["paused"],
                 partnership["started_by"],
                 False,
             )
             if id not in ids_that_failed:
                 print(ids_that_failed)
-                if ap.last_date_logged is None and ap.date_obj_from_str(ap.date_started) < yesterday_date:
+                if ap.get_last_date_logged() is None and ap.date_obj_from_str(ap.get_date_resumed()) < yesterday_date:
                     print("failed! failed to log for new partnership")
                     ids_that_failed.append(id)
                     ids_that_failed.append(str(ap.other_member))
                     await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended.")
                     # send message that they failed
-                elif ap.last_date_logged is not None and ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
+                elif ap.get_last_date_logged() is not None and ap.date_obj_from_str(ap.get_last_date_logged()) < yesterday_date:
                     print("failed! failed to log")
                     ids_that_failed.append(id)
                     ids_that_failed.append(str(ap.other_member))
