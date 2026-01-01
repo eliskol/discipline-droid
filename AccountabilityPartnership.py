@@ -41,6 +41,15 @@ class AccountabilityPartnership:
 
     @classmethod
     def from_member_id(cls, member_id: int):
+        """
+        This method gets the AP instance for the other member in the Partnership.
+
+        :param cls: self parameter; AccountabilityPartnership class.
+        :param member_id: Discord member's id to search for.
+        :type member_id: int
+        :return: None if there is no AP for member_id, or the AP object if there is one.
+        :rtype: AccountabilityPartnership | None
+        """
         print(f"Fetching AccountabilityPartnership object for member with id {member_id}")
         with open("cogs/accountability.json", "r") as read:
             partnerships_dict = json.load(read)
@@ -62,10 +71,20 @@ class AccountabilityPartnership:
             partnership["paused"]
         )
 
-    def get_other_member_ap(self):
+    def get_other_member_ap(self) -> "None | AccountabilityPartnership":
+        """
+        Docstring for get_other_member_ap
+
+        :param self: Instance of AccountabilityPartnership
+        :return: Returns the AP instance belonging to the other person in the Accountability Partnership.
+        :rtype: AccountabilityPartnership | None
+        """
         return self.from_member_id(self.other_member)
 
     def save_partnership(self):
+        """
+        This method saves the self instance of the AccountabilityPartnership class to cogs/accountability.json
+        """
         with open("cogs/accountability.json", "r") as read:
             partnerships_dict = json.load(read)
         partnerships_dict[str(self.primary_member)] = {
@@ -82,7 +101,14 @@ class AccountabilityPartnership:
         with open("cogs/accountability.json", "w") as write:
             json.dump(partnerships_dict, write, indent=2)
 
-    def log_today(self) -> str:
+    def log_today(self) -> Literal["paused", "already logged", "successful", "missing log"]:
+        """
+        This method logs for today in the AP instance.
+        It returns a status string depending on the execution of the log.
+
+        :return: Returns 'paused' if the Partnership is currently paused; 'already logged' if today was already logged; 'successful' if successful; or 'missing log' if yesterday was not logged.
+        :rtype: Literal['paused', 'already logged', 'successful', 'missing log']
+        """
         if self.paused: return "paused"
         today = datetime.datetime.now(timezone("US/Pacific")).date()
         yesterday = today - datetime.timedelta(1)
@@ -104,7 +130,13 @@ class AccountabilityPartnership:
             return "successful"
         return "missing log"
 
-    def log_yesterday(self) -> str:
+    def log_yesterday(self) -> Literal["paused", "already logged", "successful", "missing log"]:
+        """
+        Analog to log_today, but for the previous day.
+
+        :return: Returns 'paused' if the Partnership is currently paused; 'already logged' if yesterday was already logged; 'successful' if successful; 'missing log' if the day before last was not logged (which shouldn't be possible, since partnerships are eliminated if not logged for 2 days).
+        :rtype: Literal['paused', 'already logged', 'successful', 'missing log']
+        """
         if self.paused: return "paused"
         today = datetime.datetime.now(timezone("US/Pacific")).date()
         yesterday = today - datetime.timedelta(1)
@@ -128,10 +160,21 @@ class AccountabilityPartnership:
         return "missing log"
 
     def date_obj_from_str(self, string: str | None) -> datetime.date:
+        """
+        Docstring for date_obj_from_str
+
+        :param string: string representing a date in isoformat, or None.
+        :type string: str | None
+        :return: returns the date 1/1/1 if None is passed in, or the date as a date object otherwise.
+        :rtype: date
+        """
         if string is None: return datetime.date(1, 1, 1)
         return date.fromisoformat(string)
 
     def update_last_date_completed(self):
+        """
+        This method updates the last_date_completed attribute in both members' AP objects and saves them to the json file.
+        """
         other_ap = self.get_other_member_ap()
         if other_ap is None:
             print(f"There has been an error in update_last_date_completed inside the AP for user {self.primary_member}.")
@@ -146,6 +189,10 @@ class AccountabilityPartnership:
         other_ap.save_partnership()
 
     def disburse_points(self): # should only be called when a log is successful
+        """
+        This method should only be called after a successful log.
+        It adds 2 points to both members of a Partnership if they have completed a new day.
+        """
         print("inside disburse_points now ")
         points_to_add = 0
         old_last_date_completed = str(self.last_date_completed)
@@ -159,6 +206,14 @@ class AccountabilityPartnership:
         print(f"Added {points_to_add} point to {self.primary_member} and {self.other_member}")
 
     def add_points_to_member(self, member_id: int, points_to_add : int | float):
+        """
+        This method adds a given amount of points to a member with given id.
+
+        :param member_id: member to add points to
+        :type member_id: int
+        :param points_to_add: number of points to add
+        :type points_to_add: int | float
+        """
         with open("cogs/eco.json", "r") as f:
             user_eco = json.load(f)
         if str(member_id) not in user_eco:
@@ -170,8 +225,7 @@ class AccountabilityPartnership:
 
     def pause_partnership(self) -> bool:
         """
-        Docstring for pause_partnership
-
+        This method pauses a Partnership, modifies both AP instances, and saves them.
         :return: False if already paused, True if now paused.
         :rtype: bool
         """
@@ -184,8 +238,7 @@ class AccountabilityPartnership:
 
     def resume_partnership(self) -> bool:
         """
-        Docstring for resume_partnership
-
+        This method resumes a Partnership, modifies both AP instances, and saves them.
         :return: False if already active, True if now active.
         :rtype: bool
         """
