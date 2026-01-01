@@ -151,10 +151,14 @@ class Accountability(commands.Cog):
             await ctx.send(f"{ctx.author.mention}, you are not in an active Accountability Partnership!")
         else:
             ap_embed = discord.Embed(title="Accountability Partnership", description=f"{ctx.author.mention} and {(await ctx.guild.fetch_member(ap.other_member)).mention}", color=discord.Color.blue())
-            ds_tt = date.fromisoformat(ap.get_date_resumed()).timetuple()
-            ldl_tt = date.fromisoformat(ap.get_last_date_logged()).timetuple() if type(ap.get_last_date_logged()) is str else [None] * 3
-            ldc_tt = date.fromisoformat(ap.last_date_completed).timetuple() if type(ap.last_date_completed) is str else [None] * 3
-            ap_embed.add_field(name=f"Date {'Started' if len(ap.date_list) < 3 else 'Resumed'}:", value=f"{ds_tt[1]}/{ds_tt[2]}/{ds_tt[0]}")
+            ds_tt = date.fromisoformat(ap.date_started).timetuple()
+            ldl_tt = date.fromisoformat(ap.last_date_logged).timetuple() if ap.last_date_logged else [None] * 3
+            ldc_tt = date.fromisoformat(ap.last_date_completed).timetuple() if ap.last_date_completed else [None] * 3
+            ap_embed.add_field(name="Status", value="Paused" if ap.paused else "Active")
+            ap_embed.add_field(name=f"Date Started:", value=f"{ds_tt[1]}/{ds_tt[2]}/{ds_tt[0]}")
+            if ap.date_resumed is not None:
+                dr_tt = date.fromisoformat(ap.date_resumed).timetuple()
+                ap_embed.add_field(name="Date Resumed:", value=f"{dr_tt[1]}/{dr_tt[2]}/{dr_tt[0]}")
             ap_embed.add_field(name="Your Last Day Logged:", value=f"{ldl_tt[1]}/{ldl_tt[2]}/{ldl_tt[0]}")
             ap_embed.add_field(name="Last Day Completed by Both Partners:", value=f"{ldc_tt[1]}/{ldc_tt[2]}/{ldc_tt[0]}")
             await ctx.send(embed=ap_embed)
@@ -164,7 +168,7 @@ class Accountability(commands.Cog):
         status = ap.log_today()
         print(f"Status was {status}")
         log_embed = discord.Embed(title="Accountability Partnership", description=f"<@{ap.primary_member}> and <@{ap.other_member}>")
-        if status == "Paused":
+        if status == "paused":
             print("Building paused embed now.")
             log_embed.color = discord.Color.red()
             log_embed.add_field(name=f"Partnership Status:", value="Your Partnership is Currently Paused! Use !a resume to resume your partnership.", inline=False)
@@ -173,7 +177,7 @@ class Accountability(commands.Cog):
             # await ctx.send("You have already logged for today!")
             log_embed.color = discord.Color.red()
             log_embed.add_field(name=f"Log Status:", value="Already Logged", inline=False)
-            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.log_streak, inline=False)
             # log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
             # embed.add_field(name=f"Points Gained:", value=0, inline=False)
         elif status == "successful":
@@ -181,28 +185,28 @@ class Accountability(commands.Cog):
             log_embed.color = discord.Color.green()
             # await ctx.send("You have successfully logged your Accountability Partnership for today!")
             log_embed.add_field(name=f"Log Status:", value="Successful", inline=False)
-            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
-            print(f"Log streak was {ap.get_log_streak()}")
-            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
-            print(f"Completed streak was {ap.get_completion_streak()}")
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.log_streak, inline=False)
+            print(f"Log streak was {ap.log_streak}")
+            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.completion_streak, inline=False)
+            print(f"Completed streak was {ap.completion_streak}")
             # embed.add_field(name=f"Points Gained:", value={True: 2, False: 0}[ap.added_points], inline=False)
             if ap.added_points:
-                completed_embed = discord.Embed(title=f"Accountability Day {ap.get_completion_streak()} Completed!", description=f"<@{ap.primary_member}> and <@{ap.other_member}>", color=discord.Color.gold())
+                completed_embed = discord.Embed(title=f"Accountability Day {ap.completion_streak} Completed!", description=f"<@{ap.primary_member}> and <@{ap.other_member}>", color=discord.Color.gold())
                 completed_embed.add_field(name=f"Points Gained by Both Partners Today:", value=2)
                 completed_embed.add_field(name=f"{ctx.author} Total Points:", value=f"{get_points_by_id(ctx.author.id)}")
                 completed_embed.add_field(name=f"{await ctx.guild.fetch_member(ap.other_member)} Total Points:", value=f"{get_points_by_id(ap.other_member)}")
             other_ap = ap.get_other_member_ap()
             if other_ap is None: await ctx.send("There's been a glitch. Please contact Elias.")
-            elif ap.date_obj_from_str(ap.get_last_date_logged()) > ap.date_obj_from_str(other_ap.get_last_date_logged()):
+            elif ap.date_obj_from_str(ap.last_date_logged) > ap.date_obj_from_str(other_ap.last_date_logged):
                 # send reminder
-                print(f"Other partner last_date_logged is {other_ap.get_last_date_logged()}")
+                print(f"Other partner last_date_logged is {other_ap.last_date_logged}")
                 other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
                 await other_member_obj.send(f"{other_member_obj}, your Accountability Partner has logged for today!\nPlease log today to complete the day and extend your streak!")
         else:
             log_embed.color = discord.Color.red()
             log_embed.add_field(name=f"{ctx.author} Log Status:", value="You forgot to log yesterday!", inline=False)
-            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
-            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.log_streak, inline=False)
+            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.completion_streak, inline=False)
             log_embed.add_field(name=f"Points Gained:", value=0, inline=False)
         print("Sending log_embed now.")
         await ctx.send(embed=log_embed)
@@ -216,30 +220,30 @@ class Accountability(commands.Cog):
         status = ap.log_yesterday()
         print(f"Status was {status}")
         log_embed = discord.Embed(title="Accountability Partnership", description=f"<@{ap.primary_member}> and <@{ap.other_member}>")
-        if status == "Paused":
+        if status == "paused":
             print("Building paused embed now.")
             log_embed.color = discord.Color.red()
             log_embed.add_field(name=f"Partnership Status:", value="Your Partnership is Currently Paused! Use !a resume to resume your partnership.", inline=False)
         elif status == "already logged":
             log_embed.color = discord.Color.red()
             log_embed.add_field(name=f"Log Status:", value="Already Logged", inline=False)
-            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
-            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.log_streak, inline=False)
+            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.completion_streak, inline=False)
         elif status == "successful":
             log_embed.color = discord.Color.green()
             log_embed.add_field(name=f"Log Status:", value="Successful", inline=False)
-            log_embed.add_field(name=f"Days Logged by You:", value=ap.get_log_streak(), inline=False)
-            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.get_completion_streak(), inline=False)
+            log_embed.add_field(name=f"Days Logged by You:", value=ap.log_streak, inline=False)
+            log_embed.add_field(name=f"Days Completed by Both Partners:", value=ap.completion_streak, inline=False)
             # embed.add_field(name=f"Points Gained:", value={True: 2, False: 0}[ap.added_points], inline=False)
             if ap.added_points:
-                completed_embed = discord.Embed(title=f"Accountability Day {ap.get_completion_streak()} Completed!", description=f"<@{ap.primary_member}> and <@{ap.other_member}>", color=discord.Color.gold())
+                completed_embed = discord.Embed(title=f"Accountability Day {ap.completion_streak} Completed!", description=f"<@{ap.primary_member}> and <@{ap.other_member}>", color=discord.Color.gold())
                 completed_embed.add_field(name=f"Points Gained by Both Partners Yesterday:", value=2)
                 completed_embed.add_field(name=f"{ctx.author} Total Points:", value=f"{get_points_by_id(ctx.author.id)}")
                 completed_embed.add_field(name=f"{await ctx.guild.fetch_member(ap.other_member)} Total Points:", value=f"{get_points_by_id(ap.other_member)}")
             # await ctx.send("You have successfully logged your Accountability Partnership for yesterday!")
             other_ap = ap.get_other_member_ap()
             if other_ap is None: await ctx.send("There's been a glitch. Please contact Elias.")
-            elif ap.date_obj_from_str(ap.get_last_date_logged()) > ap.date_obj_from_str(other_ap.get_last_date_logged()):
+            elif ap.date_obj_from_str(ap.last_date_logged) > ap.date_obj_from_str(other_ap.last_date_logged):
                 # send reminder
                 print(f"Other partner last_date_logged is {other_ap.get_last_date_logged()}")
                 other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
@@ -269,18 +273,24 @@ class Accountability(commands.Cog):
     async def pause(self, ctx, *args):
         ap = AccountabilityPartnership.from_member_id(ctx.author.id)
         if ap:
-            ap.pause_partnership()
-            await ctx.send(f"{ctx.author}, your Accountability Partnership has been paused.")
-            other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
-            await other_member_obj.send(f"{ctx.author} has paused your Accountability Partnership.")
+            pause_status = ap.pause_partnership()
+            if pause_status:
+                await ctx.send(f"{ctx.author}, your Accountability Partnership has been paused.")
+                other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
+                await other_member_obj.send(f"{ctx.author} has paused your Accountability Partnership.")
+            else:
+                await ctx.send(f"{ctx.author}, your Accountability Partnership was already paused.")
 
     async def resume(self, ctx, *args):
         ap = AccountabilityPartnership.from_member_id(ctx.author.id)
         if ap:
-            ap.resume_partnership()
-            await ctx.send(f"{ctx.author}, your Accountability Partnership has been resumed!")
-            other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
-            await other_member_obj.send(f"{ctx.author} has resumed your Accountability Partnership!")
+            resume_status = ap.resume_partnership()
+            if resume_status:
+                await ctx.send(f"{ctx.author}, your Accountability Partnership has been resumed!")
+                other_member_obj : discord.User = ctx.guild.get_member(ap.other_member)
+                await other_member_obj.send(f"{ctx.author} has resumed your Accountability Partnership!")
+            else:
+                await ctx.send(f"{ctx.author}, your Accountability Partnership was not paused.")
 
 
 async def setup(client):
