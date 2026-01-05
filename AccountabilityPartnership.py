@@ -1,6 +1,7 @@
 import json
 import datetime
 from datetime import date
+from typing import Literal
 from pytz import timezone
 
 
@@ -11,103 +12,175 @@ class AccountabilityPartnership:
         primary_member: int,
         other_member: int,
         date_started: str | None = None,
+        date_resumed: str | None = None,
         last_date_logged: str | None = None,
+        log_streak: int = 0,
         last_date_completed: str | None = None,
+        completion_streak: int = 0,
         started_by: int | None = None,
         new=True,
+        paused=False
     ):
+        self.primary_member: int = primary_member
+        self.other_member: int = other_member
         self.date_started: str = (
             date_started
             if date_started
             else str(datetime.datetime.now(timezone("US/Pacific")).date())
         )
-        self.primary_member: int = primary_member
-        self.other_member: int = other_member
+        self.date_resumed: str | None = date_resumed
         self.last_date_logged: str | None = last_date_logged
+        self.log_streak: int = log_streak
         self.last_date_completed: str | None = last_date_completed
-        self.started_by = started_by
+        self.completion_streak: int = completion_streak
+        self.started_by: int | None = started_by
+        self.paused: bool = paused
         if new:
             print("Saving new Accountability Partnership")
             self.save_partnership()
 
     @classmethod
     def from_member_id(cls, member_id: int):
+        """
+        This method gets the AP instance for the other member in the Partnership.
+
+        :param cls: self parameter; AccountabilityPartnership class.
+        :param member_id: Discord member's id to search for.
+        :type member_id: int
+        :return: None if there is no AP for member_id, or the AP object if there is one.
+        :rtype: AccountabilityPartnership | None
+        """
         print(f"Fetching AccountabilityPartnership object for member with id {member_id}")
         with open("cogs/accountability.json", "r") as read:
             partnerships_dict = json.load(read)
         if str(member_id) not in partnerships_dict.keys():
             return None
         partnership = partnerships_dict[str(member_id)]
+        print("Stored AP:", partnership)
         return cls(
             member_id,
             int(partnership["other_member"]),
             partnership["date_started"],
+            partnership["date_resumed"],
             partnership["last_date_logged"],
+            int(partnership["log_streak"]),
             partnership["last_date_completed"],
+            int(partnership["completion_streak"]),
             partnership["started_by"],
             False,
+            partnership["paused"]
         )
 
-    def get_other_member_ap(self):
+    def get_other_member_ap(self) -> "None | AccountabilityPartnership":
+        """
+        Docstring for get_other_member_ap
+
+        :param self: Instance of AccountabilityPartnership
+        :return: Returns the AP instance belonging to the other person in the Accountability Partnership.
+        :rtype: AccountabilityPartnership | None
+        """
         return self.from_member_id(self.other_member)
 
     def save_partnership(self):
+        """
+        This method saves the self instance of the AccountabilityPartnership class to cogs/accountability.json
+        """
         with open("cogs/accountability.json", "r") as read:
             partnerships_dict = json.load(read)
         partnerships_dict[str(self.primary_member)] = {
             "other_member": self.other_member,
             "date_started": self.date_started,
+            "date_resumed": self.date_resumed,
             "last_date_logged": self.last_date_logged,
+            "log_streak": self.log_streak,
             "last_date_completed": self.last_date_completed,
+            "completion_streak": self.completion_streak,
             "started_by": self.started_by,
+            "paused": self.paused
         }
         with open("cogs/accountability.json", "w") as write:
             json.dump(partnerships_dict, write, indent=2)
 
-    def log_today(self) -> str:
+    def log_today(self) -> Literal["paused", "already logged", "successful", "missing log"]:
+        """
+        This method logs for today in the AP instance.
+        It returns a status string depending on the execution of the log.
+
+        :return: Returns 'paused' if the Partnership is currently paused; 'already logged' if today was already logged; 'successful' if successful; or 'missing log' if yesterday was not logged.
+        :rtype: Literal['paused', 'already logged', 'successful', 'missing log']
+        """
+        if self.paused: return "paused"
         today = datetime.datetime.now(timezone("US/Pacific")).date()
         yesterday = today - datetime.timedelta(1)
         if self.last_date_logged == str(today):  # if today already logged
             return "already logged"
-        if self.last_date_logged == str(yesterday) or self.date_started == str(today):
+        if self.last_date_logged == str(yesterday) or self.date_started == str(today) or self.date_resumed == str(today):
             self.last_date_logged = str(today)
+            self.log_streak += 1
+
+            other_ap = self.get_other_member_ap()
+            if self.last_date_logged == other_ap.last_date_logged:
+                self.completion_streak += 1
+                other_ap.completion_streak += 1
             self.save_partnership() # possibly redundant since disburse_points calls update_last_date_completed which saves partnership
+            other_ap.save_partnership()
+
             print(f"Saved partnership after updating last_date_logged")
             self.disburse_points()
             return "successful"
         return "missing log"
 
-    def log_yesterday(self) -> str:
+    def log_yesterday(self) -> Literal["paused", "already logged", "successful", "missing log"]:
+        """
+        Analog to log_today, but for the previous day.
+
+        :return: Returns 'paused' if the Partnership is currently paused; 'already logged' if yesterday was already logged; 'successful' if successful; 'missing log' if the day before last was not logged (which shouldn't be possible, since partnerships are eliminated if not logged for 2 days).
+        :rtype: Literal['paused', 'already logged', 'successful', 'missing log']
+        """
+        if self.paused: return "paused"
         today = datetime.datetime.now(timezone("US/Pacific")).date()
         yesterday = today - datetime.timedelta(1)
         last_date_logged = self.date_obj_from_str(self.last_date_logged)
         if last_date_logged >= yesterday:
             return "already logged"
-        if last_date_logged == yesterday - datetime.timedelta(1) or self.date_started == str(yesterday):
+        if last_date_logged == yesterday - datetime.timedelta(1) or self.date_started == str(yesterday) or self.date_resumed == str(yesterday):
             self.last_date_logged = str(yesterday)
+            self.log_streak += 1
+
+            other_ap = self.get_other_member_ap()
+            if date.fromisoformat(self.last_date_logged) <= self.date_obj_from_str(other_ap.last_date_logged):
+                self.completion_streak += 1
+                other_ap.completion_streak += 1
+
             self.save_partnership()
+            other_ap.save_partnership()
             print(f"Saved partnership after updating last_date_logged")
             self.disburse_points()
             return "successful"
         return "missing log"
 
     def date_obj_from_str(self, string: str | None) -> datetime.date:
+        """
+        Docstring for date_obj_from_str
+
+        :param string: string representing a date in isoformat, or None.
+        :type string: str | None
+        :return: returns the date 1/1/1 if None is passed in, or the date as a date object otherwise.
+        :rtype: date
+        """
         if string is None: return datetime.date(1, 1, 1)
         return date.fromisoformat(string)
 
     def update_last_date_completed(self):
+        """
+        This method updates the last_date_completed attribute in both members' AP objects and saves them to the json file.
+        """
         other_ap = self.get_other_member_ap()
         if other_ap is None:
             print(f"There has been an error in update_last_date_completed inside the AP for user {self.primary_member}.")
             return
         elif self.last_date_logged is None or other_ap.last_date_logged is None:
             return
-        # elif self.last_date_logged is None: # other_ap.last_date_logged cannot possibly be None now
-        #     self.last_date_completed = other_ap.last_date_logged
-        #     other_ap.last_date_completed = other_ap.last_date_logged
-        # elif other_ap.last_date_logged is None: # self.last_date_logged cannot possibly be None now
-        #     self.last_date_completed = self.last_date_logged
-            # other_ap.last_date_completed = self.last_date_logged
         else: # neither self.last_date_logged nor other_ap.last_date_logged are None
             self.last_date_completed = min(self.last_date_logged, other_ap.last_date_logged)
             other_ap.last_date_completed = min(self.last_date_logged, other_ap.last_date_logged)
@@ -116,8 +189,11 @@ class AccountabilityPartnership:
         other_ap.save_partnership()
 
     def disburse_points(self): # should only be called when a log is successful
+        """
+        This method should only be called after a successful log.
+        It adds 2 points to both members of a Partnership if they have completed a new day.
+        """
         print("inside disburse_points now ")
-        date_started = self.date_obj_from_str(self.date_started)
         points_to_add = 0
         old_last_date_completed = str(self.last_date_completed)
         self.update_last_date_completed()
@@ -130,6 +206,14 @@ class AccountabilityPartnership:
         print(f"Added {points_to_add} point to {self.primary_member} and {self.other_member}")
 
     def add_points_to_member(self, member_id: int, points_to_add : int | float):
+        """
+        This method adds a given amount of points to a member with given id.
+
+        :param member_id: member to add points to
+        :type member_id: int
+        :param points_to_add: number of points to add
+        :type points_to_add: int | float
+        """
         with open("cogs/eco.json", "r") as f:
             user_eco = json.load(f)
         if str(member_id) not in user_eco:
@@ -139,10 +223,29 @@ class AccountabilityPartnership:
         with open("cogs/eco.json", "w") as f:
             json.dump(user_eco, f, indent=2)
 
-    def get_log_streak(self) -> int:
-        if self.last_date_logged is None: return 0
-        return (date.fromisoformat(self.last_date_logged) - date.fromisoformat(self.date_started)).days + 1
+    def pause_partnership(self) -> bool:
+        """
+        This method pauses a Partnership, modifies both AP instances, and saves them.
+        :return: False if already paused, True if now paused.
+        :rtype: bool
+        """
+        if not self.paused:
+            self.paused = True
+            self.save_partnership()
+            self.get_other_member_ap().pause_partnership()
+            return True
+        return False
 
-    def get_completion_streak(self) -> int:
-        if self.last_date_completed is None: return 0
-        return (date.fromisoformat(self.last_date_completed) - date.fromisoformat(self.date_started)).days + 1
+    def resume_partnership(self) -> bool:
+        """
+        This method resumes a Partnership, modifies both AP instances, and saves them.
+        :return: False if already active, True if now active.
+        :rtype: bool
+        """
+        if self.paused:
+            self.paused = False
+            self.date_resumed = str(datetime.datetime.now(timezone("US/Pacific")).date())
+            self.save_partnership()
+            self.get_other_member_ap().resume_partnership()
+            return True
+        return False
