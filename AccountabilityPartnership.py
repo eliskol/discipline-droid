@@ -1,4 +1,5 @@
 import json
+import random
 import datetime
 from datetime import date
 from typing import Literal
@@ -17,6 +18,7 @@ class AccountabilityPartnership:
         log_streak: int = 0,
         last_date_completed: str | None = None,
         completion_streak: int = 0,
+        stake_level: str = "low",
         started_by: int | None = None,
         new=True,
         paused=False
@@ -33,6 +35,7 @@ class AccountabilityPartnership:
         self.log_streak: int = log_streak
         self.last_date_completed: str | None = last_date_completed
         self.completion_streak: int = completion_streak
+        self.stake_level: str = stake_level
         self.started_by: int | None = started_by
         self.paused: bool = paused
         if new:
@@ -66,6 +69,7 @@ class AccountabilityPartnership:
             int(partnership["log_streak"]),
             partnership["last_date_completed"],
             int(partnership["completion_streak"]),
+            partnership["stakes"],
             partnership["started_by"],
             False,
             partnership["paused"]
@@ -95,6 +99,7 @@ class AccountabilityPartnership:
             "log_streak": self.log_streak,
             "last_date_completed": self.last_date_completed,
             "completion_streak": self.completion_streak,
+            "stakes": self.stake_level,
             "started_by": self.started_by,
             "paused": self.paused
         }
@@ -249,3 +254,53 @@ class AccountabilityPartnership:
             self.get_other_member_ap().resume_partnership()
             return True
         return False
+
+    def fail_partnership(self) -> int:
+        """
+        Fails the partnership, deleting it from accountability.json and removing a random amount of points based on the stakes of the partnership.
+        It returns the amount of points lost.
+        """
+        with open("cogs/accountability.json", "r") as read:
+            all_partnerships = json.load(read)
+            read.close()
+            print(f"Read accountability.json: {all_partnerships}")
+        del all_partnerships[str(self.primary_member)]
+        print(f"Deleted this partnership, now all_partnerships is {all_partnerships}.")
+        with open("cogs/accountability.json", "w") as write:
+            print("Dumping accountability.json now.")
+            json.dump(all_partnerships, write, indent=2)
+            write.close()
+
+        stake = self.calculate_stake()
+        self.remove_points_from_primary_member(stake)
+
+        other_ap = self.get_other_member_ap()
+        if other_ap is not None:
+            other_ap.fail_partnership()
+            other_ap.remove_points_from_primary_member(stake)
+
+        return stake
+
+
+    def calculate_stake(self) -> int:
+        """
+        Helper method for failing the partnership.
+        Returns the amount of points to remove for the stake.
+        """
+        point_ranges = {"low": [20, 40], "medium": [40, 60], "high": [50, 200]}
+        return random.randrange(*point_ranges[self.stake_level], 1)
+
+    def remove_points_from_primary_member(self, points_to_remove):
+        """
+        Removes a given amount of points from the primary member of the partnership.
+        Returns the amount of points removed.
+        :param points_to_remove: Amount of points to remove
+        """
+        with open("cogs/eco.json", "r") as f:
+            user_eco = json.load(f)
+        if str(self.primary_member) not in user_eco:
+            user_eco[str(self.primary_member)] = {}
+            user_eco[str(self.primary_member)]["Growth Points"] = 0
+        user_eco[str(self.primary_member)]["Growth Points"] -= points_to_remove
+        with open("cogs/eco.json", "w") as f:
+            json.dump(user_eco, f, indent=2)

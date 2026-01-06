@@ -75,7 +75,7 @@ class Accountability(commands.Cog):
 
 
     async def start(self, ctx, *args):
-        if len(args) == 1:
+        if len(args) == 2:
             await ctx.send(f"{ctx.author}, you have an argument missing.")
             return
         invited_member_obj = await get_member_obj_from_arg(ctx, args[1])
@@ -84,33 +84,38 @@ class Accountability(commands.Cog):
             await ctx.send(f"{ctx.author}, please try your command again.")
             return
 
+        stake_level = args[2]
+
         invited_member_id = invited_member_obj.id
-
-        # if invited_member_obj == ctx.author:
-            # await ctx.send(f"{ctx.author}, you cannot invite yourself to an Accountability Partnership!")
-            # return
-
-        if int(ctx.author.id) in self.open_invitations and self.open_invitations[int(ctx.author.id)] == invited_member_id:
+        if stake_level not in ["low", "medium", "high"]:
+            await ctx.send(f"{ctx.author}, please try your command again. The stake options are low, medium, or high.")
+        elif invited_member_obj == ctx.author:
+            await ctx.send(f"{ctx.author}, you cannot invite yourself to an Accountability Partnership!")
+        elif int(ctx.author.id) in self.open_invitations and self.open_invitations[int(ctx.author.id)][0] == invited_member_id:
             await ctx.send(f"{ctx.author}, you have already invited {invited_member_obj} to an Accountability Partnership.")
-        elif invited_member_id in self.open_invitations and self.open_invitations[int(invited_member_id)] == int(ctx.author.id):
+        elif invited_member_id in self.open_invitations and self.open_invitations[int(invited_member_id)][0] == int(ctx.author.id):
             # members have succesfully invited each other to Accountability Partnership
-            await ctx.send(f"<@{invited_member_id}> and <@{ctx.author.id}>, you have begun an Accountability Partnership!")
-            del self.open_invitations[invited_member_id]
-            self.save_open_invitations()
-            self.start_accountability_partnership(invited_member_id, ctx.author.id)
+            if self.open_invitations[int(invited_member_id)][1] == stake_level:
+                await ctx.send(f"<@{invited_member_id}> and <@{ctx.author.id}>, you have begun an Accountability Partnership for {stake_level} stakes!")
+                del self.open_invitations[invited_member_id]
+                self.save_open_invitations()
+                self.start_accountability_partnership(invited_member_id, ctx.author.id, stake_level)
+            else:
+                await ctx.send(f"{ctx.author}, you must start the Partnership for the same stakes as your partner. Decline their invitation and try starting again to change the stakes.")
         else:
             await ctx.send(f"{ctx.author} has invited {invited_member_obj} to participate in an Accountability Partnership!")
-            self.open_invitations[int(ctx.author.id)] = invited_member_obj.id
+            self.open_invitations[int(ctx.author.id)] = [invited_member_obj.id, stake_level]
             self.save_open_invitations()
             await invited_member_obj.send(f"{invited_member_obj}, {ctx.author} has invited you to an Accountability Partnership!\nType `!accountability start {ctx.author}` in the accountability channel to accept their invitation!\nType `!accountability decline {ctx.author}` if you choose to decline.")
 
     async def decline(self, ctx, *args):
         original_member = await get_member_obj_from_arg(ctx, args[1])
+        all_invited_members = [arr[0] for arr in self.open_invitations.values()]
         if original_member is None:
             ctx.send("Please try your command again.")
-        if ctx.author.id not in self.open_invitations.values() or (ctx.author.id in self.open_invitations.values() and self.open_invitations[original_member.id] != ctx.author.id):
+        if ctx.author.id not in all_invited_members or (ctx.author.id in all_invited_members and self.open_invitations[original_member.id][0] != ctx.author.id):
             await ctx.send("Sorry, you do not have an accountability invitation from this person.")
-        elif self.open_invitations[original_member.id] == ctx.author.id:
+        elif self.open_invitations[original_member.id][0] == ctx.author.id:
             del self.open_invitations[original_member.id]
             await ctx.send(f"{ctx.author}, you have declined the accountability invitation from {original_member}.")
             self.save_open_invitations()
@@ -130,9 +135,9 @@ class Accountability(commands.Cog):
         else:
             await ctx.send("Please try your command again!")
 
-    def start_accountability_partnership(self, original_member, second_member):
-        AccountabilityPartnership(original_member, second_member, started_by = original_member)
-        AccountabilityPartnership(second_member, original_member, started_by = original_member)
+    def start_accountability_partnership(self, original_member, second_member, stake_level):
+        AccountabilityPartnership(original_member, second_member, stake_level=stake_level, started_by = original_member)
+        AccountabilityPartnership(second_member, original_member, stake_level=stake_level, started_by = original_member)
 
     async def help(self, ctx, *args):
         print(f"help command invoked by {ctx.author}")

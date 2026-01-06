@@ -241,31 +241,22 @@ async def check_accountability_partnerships():
                 continue
             print(f"looking at member with id {id}")
             ap = AccountabilityPartnership.from_member_id(int(id))
-            if ap.paused:
-                print(f"Member with id {id} is currently paused, so skipping checks.")
+            if ap.paused or ap is None:
                 continue
-            if id not in ids_that_failed:
-                print(ids_that_failed)
-                if ap.last_date_logged is None and ap.date_obj_from_str(ap.date_resumed if ap.date_resumed else ap.date_started) < yesterday_date:
-                    print("failed! failed to log for new partnership")
-                    ids_that_failed.append(id)
-                    ids_that_failed.append(str(ap.other_member))
-                    await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended.")
-                    # send message that they failed
-                elif ap.last_date_logged is not None and ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
-                    print("failed! failed to log")
-                    ids_that_failed.append(id)
-                    ids_that_failed.append(str(ap.other_member))
-                    await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended.")
-                    # send message that they failed
-                else: print("still in!")
 
-        for id in ids_that_failed:
-            del accountability_partnerships[id]
-        with open("cogs/accountability.json", "w") as write:
-            json.dump(accountability_partnerships, write, indent=2)
+            if ap.last_date_logged is None and ap.date_obj_from_str(ap.date_resumed if ap.date_resumed else ap.date_started) < yesterday_date:
+                print("failed! failed to log for new partnership")
+                points_lost = ap.fail_partnership()
+                await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended. You lost {points_lost} points.")
+            elif ap.last_date_logged is not None and ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
+                print("failed! failed to log")
+                points_lost = ap.fail_partnership()
+                await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended. You lost {points_lost} points.")
+            else: print("still in!")
+
     else:
         with open("cogs/accountability.json", "w") as write:
+            print(f"Dumping empty json since cogs/accountability.json does not exist.")
             json.dump({}, write, index=2)
 
 # Handle reactions to trigger commands
