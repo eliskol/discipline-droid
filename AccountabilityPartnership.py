@@ -206,11 +206,11 @@ class AccountabilityPartnership:
         if str(self.last_date_completed) != old_last_date_completed: # str() is necessary because it might be None
             points_to_add = 2
             self.added_points = True
-        self.add_points_to_member(self.primary_member, points_to_add)
-        self.add_points_to_member(self.other_member, points_to_add)
+        self.add_points_to_primary_member(points_to_add)
+        self.get_other_member_ap().add_points_to_primary_member(points_to_add)
         print(f"Added {points_to_add} point to {self.primary_member} and {self.other_member}")
 
-    def add_points_to_member(self, member_id: int, points_to_add : int | float):
+    def add_points_to_primary_member(self, points_to_add : int | float):
         """
         This method adds a given amount of points to a member with given id.
 
@@ -221,10 +221,10 @@ class AccountabilityPartnership:
         """
         with open("cogs/eco.json", "r") as f:
             user_eco = json.load(f)
-        if str(member_id) not in user_eco:
-            user_eco[str(member_id)] = {}
-            user_eco[str(member_id)]["Growth Points"] = 0
-        user_eco[str(member_id)]["Growth Points"] += points_to_add
+        if str(self.primary_member) not in user_eco:
+            user_eco[str(self.primary_member)] = {}
+            user_eco[str(self.primary_member)]["Growth Points"] = 0
+        user_eco[str(self.primary_member)]["Growth Points"] += points_to_add
         with open("cogs/eco.json", "w") as f:
             json.dump(user_eco, f, indent=2)
 
