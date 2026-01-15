@@ -15,7 +15,7 @@ from pathlib import Path
 
 from csv_fixer import fix_csvs
 
-dotenv_path = Path('test.env')
+dotenv_path = Path('main.env')
 load_dotenv(dotenv_path=dotenv_path)
 
 bot_token = os.getenv('bot_token')
@@ -241,14 +241,16 @@ async def check_accountability_partnerships():
                 continue
             print(f"looking at member with id {id}")
             ap = AccountabilityPartnership.from_member_id(int(id))
-            if ap.paused or ap is None:
+            if ap is None:
+                continue
+            elif ap.paused:
                 continue
 
-            if ap.last_date_logged is None and ap.date_obj_from_str(ap.date_resumed if ap.date_resumed else ap.date_started) < yesterday_date:
+            if ap.last_date_logged is None and (ap.date_obj_from_str(ap.date_resumed if ap.date_resumed else ap.date_started) - yesterday_date).days < -1:
                 print("failed! failed to log for new partnership")
                 points_lost = ap.fail_partnership()
                 await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended. You lost {points_lost} points.")
-            elif ap.last_date_logged is not None and ap.date_obj_from_str(ap.last_date_logged) < yesterday_date:
+            elif ap.last_date_logged is not None and (ap.date_obj_from_str(ap.last_date_logged) - yesterday_date).days < -1:
                 print("failed! failed to log")
                 points_lost = ap.fail_partnership()
                 await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended. You lost {points_lost} points.")
