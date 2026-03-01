@@ -10,15 +10,15 @@
             "description": "Start The Day Off Right,"
         }
     },
-    "sunlight": {
-        "long_name": "Morning Sun",
+    "alarm": {
+        "long_name": "Don't Snooze Your Alarm",
         "alr_done": {
-            "title": "Morning Sun Already Recorded",
-            "description": "Get That Fresh Vitamin D Tomorrow,"
+            "title": "Good job getting up today.",
+            "description": "Wake up tomorrow refreshed and alert,"
         },
         "just_done": {
-            "title": "Morning Sun Recorded",
-            "description": "Your Day Is Looking Bright,"
+            "title": "Waking Up Recorded",
+            "description": "Your day is looking bright,"
         }
     },
    "sunriser": {
