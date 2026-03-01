@@ -15,7 +15,7 @@ from pathlib import Path
 
 from csv_fixer import fix_csvs
 
-dotenv_path = Path('main.env')
+dotenv_path = Path('test.env')
 load_dotenv(dotenv_path=dotenv_path)
 
 bot_token = os.getenv('bot_token')
@@ -28,12 +28,12 @@ accountability_channel_id = int(os.getenv('accountability_channel'))
 client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 client.embed_message = None
 # List of 10 reactions (you can change these emojis)
-REACTIONS = ["🛏️", "😎", "🌅", "🧘", "📝", "🙏", "🏋", "🚿", "📖", "🌟"]
+REACTIONS = ["🛏️", "⏰", "🌅", "🧘", "📝", "🙏", "🏋", "🚿", "📖", "🌟"]
 
 # Reaction triggers for specific actions
 TREACTION_COMMANDS = {
     "🛏️": "makebed",
-    "😎": "sunlight",
+    "⏰": "alarm",
     "🌅": "earlybird",
     "🧘": "meditation",
     "📝": "journal",
@@ -46,7 +46,7 @@ TREACTION_COMMANDS = {
 
 YREACTION_COMMANDS = {
     "🛏️": "yesterdaymakebed",
-    "😎": "yesterdaysunlight",
+    "⏰": "yesterdayalarm",
     "🌅": "yesterdayearlybird",
     "🧘": "yesterdaymeditation",
     "📝": "yesterdayjournal",
@@ -72,7 +72,7 @@ async def send_leaderboard_message():
     leaderboard_channel = client.get_channel(leaderboard_channel_id)
     if leaderboard_channel:
         embed = discord.Embed(
-            title="🏆Self-Improvement Club Leaders🏆",
+            title="🏆 Self-Improvement Club Leaders 🏆",
             description="Here we commemorate SIC members for their discipline!",
             color=discord.Color.green()
         )
@@ -83,7 +83,7 @@ async def send_leaderboard_message():
         embed.add_field(
             name="🛏️ Make Bed", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
         embed.add_field(
-            name="😎 Sunlight", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
+            name="⏰ Alarm", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
         embed.add_field(
             name="🌅 Early Bird", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
         embed.add_field(
@@ -121,7 +121,7 @@ async def send_startup_message():
         todaytt = todayr.timetuple()
         today = todayr.isoformat()
         disc = ['coldshower', 'gratitude', 'journal', 'makebed', 'meditation',
-                'personal', 'reading', 'sunlight', 'sunriser', 'workout']
+                'personal', 'reading', 'alarm', 'sunriser', 'workout']
         for a in disc: # adding current day to csv file if it isn't there already
             record = pd.read_csv(f"cogs/Habits Record/{a}.csv")
             if today != record.columns[-1]:
@@ -141,7 +141,7 @@ async def send_startup_message():
             name="Please click the emoji that represents your completed Discipline.\n"
             "Points will be recorded in the Progress Reporting Chat.",
             value="1. 🛏️ Make your bed. | 0.2 pts\n"
-            "2. 😎 Get Sunlight Exposure. | 0.25 pts\n"
+            "2. ⏰ Get out of bed without snoozing your alarm. | 0.25 pts\n"
             "3. 🌅 Wake up at or before 6 am. | 0.5 pts\n"
             "4. 🧘 Meditate for at least 5 minutes. | 0.5 pts\n"
             "5. 📝 Write a Journal Entry. | 1 pt\n"
@@ -186,7 +186,7 @@ async def daily_loop():
         todaytt = todayr.timetuple()
         today = todayr.isoformat()
         disc = ['coldshower', 'gratitude', 'journal', 'makebed', 'meditation',
-                'personal', 'reading', 'sunlight', 'sunriser', 'workout']
+                'personal', 'reading', 'alarm', 'sunriser', 'workout']
         for a in disc:
             record = pd.read_csv(f"cogs/Habits Record/{a}.csv")
             if today != record.columns[-1]:
@@ -201,7 +201,7 @@ async def daily_loop():
             name="Please click the emoji that represents your completed Discipline.\n"
             "Points will be recorded in the Progress Reporting Chat.",
             value="1. 🛏️ Make your bed. | 0.2 pts\n"
-            "2. 😎 Get Sunlight Exposure. | 0.25 pts\n"
+            "2. ⏰ Get up without snoozing your alarm. | 0.25 pts\n"
             "3. 🌅 Wake up at or before 6 am. | 0.5 pts\n"
             "4. 🧘 Meditate for at least 5 minutes. | 0.5 pts\n"
             "5. 📝 Write a Journal Entry. | 1 pt\n"
@@ -268,11 +268,12 @@ async def check_accountability_partnerships():
 async def on_reaction_add(reaction, user):
     if user.bot:  # Ignore bot reactions
         return
+    print(f"{user} reacteed with {reaction}")
     todayr = datetime.datetime.now(timezone("US/Pacific")).date()
     today = todayr.isoformat()
     yesterdayr = todayr - datetime.timedelta(days=1)
     yesterday = yesterdayr.isoformat()
-    mdate = (reaction.message.created_at.replace(tzinfo=timezone("US/Pacific"))).date()
+    mdate = (reaction.message.created_at.astimezone(tz=timezone("US/Pacific"))).date()
     mdate = str(mdate)
     # Check if it's a bot message and the emoji is in the reaction commands
     if reaction.message.author == client.user and reaction.emoji in TREACTION_COMMANDS and today == mdate:

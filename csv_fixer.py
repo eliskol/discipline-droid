@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import date, timedelta
 
 csv_file_names = ["coldshower", "gratitude", "journal", "makebed",
-                  "meditation", "personal", "reading", "sunlight", "sunriser", "workout"]
+                  "meditation", "personal", "reading", "alarm", "sunriser", "workout"]
 
 def fix_csvs():
     for file_name in csv_file_names:

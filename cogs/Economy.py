@@ -34,11 +34,11 @@ client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 class Economy(commands.Cog):
     def __init__(self, client):
         self.client = client
-        self.discipline_values = {"makebed": 0.2, "sunlight": 0.25, "sunriser": 0.5, "meditation": 0.5,
+        self.discipline_values = {"makebed": 0.2, "alarm": 0.25, "sunriser": 0.5, "meditation": 0.5,
                                   "journal": 1, "gratitude": 0.3, "workout": 1, "coldshower": 0.5, "reading": 0.5, "personal": 1}
         with open('cogs/discipline_embed_info.json') as f:
             self.discipline_embed_info = json.load(f)
-        self.discipline_to_leaderboard_json_title = {"makebed": "Makebed", "sunlight": "Sunlight", "sunriser": "Early", "meditation": "Meditate",
+        self.discipline_to_leaderboard_json_title = {"makebed": "Makebed", "alarm": "Alarm", "sunriser": "Early", "meditation": "Meditate",
                                                      "journal": "Journal", "gratitude": "Gratitude", "workout": "Workout", "coldshower": "Cold", "reading": "Read", "personal": "Goal"}
 
     @commands.Cog.listener()
@@ -179,7 +179,7 @@ class Economy(commands.Cog):
             new_embed.add_field(
                 name="🛏️ Make Bed", value=f"🥇 {idsf[10]} | {score[10]} Days\n🥈 {idsf[11]} | {score[11]} Days\n🥉 {idsf[12]} | {score[12]} Days\n4. {idsf[13]} | {score[13]} Days\n5. {idsf[14]} | {score[14]} Days", inline=True)
             new_embed.add_field(
-                name="😎 Sunlight", value=f"🥇 {idsf[15]} | {score[15]} Days\n🥈 {idsf[16]} | {score[16]} Days\n🥉 {idsf[17]} | {score[17]} Days\n4. {idsf[18]} | {score[18]} Days\n5. {idsf[19]} | {score[19]} Days", inline=True)
+                name="⏰ Alarm", value=f"🥇 {idsf[15]} | {score[15]} Days\n🥈 {idsf[16]} | {score[16]} Days\n🥉 {idsf[17]} | {score[17]} Days\n4. {idsf[18]} | {score[18]} Days\n5. {idsf[19]} | {score[19]} Days", inline=True)
             new_embed.add_field(
                 name="🌅 Early Bird", value=f"🥇 {idsf[20]} | {score[20]} Days\n🥈 {idsf[21]} | {score[21]} Days\n🥉 {idsf[22]} | {score[22]} Days\n4. {idsf[23]} | {score[23]} Days\n5. {idsf[24]} | {score[24]} Days", inline=True)
             new_embed.add_field(
@@ -305,9 +305,9 @@ class Economy(commands.Cog):
     async def makebed(self, context):
         await self.input_discipline("makebed", context)
 
-    @commands.command(aliases=["Sunlight", "Sun", "sun", "Morninglight", "morninglight", 'Morningsun', 'morningsun', 'light', 'Light'], pass_context=True)
-    async def sunlight(self, ctx):
-        await self.input_discipline("sunlight", ctx)
+    @commands.command(aliases=["Alarm", "snooze", "awake", "Awake", "Wake", "wake"], pass_context=True)
+    async def alarm(self, ctx):
+        await self.input_discipline("alarm", ctx)
 
     @commands.command(aliases=["Sunriser", "earlybird", "Earlybird", "firstwatch", "Firstwatch", "6am", "6AM", "6a.m.", "6A.M.", "early", "Early"], pass_context=True)
     async def sunriser(self, ctx):
@@ -373,15 +373,15 @@ class Economy(commands.Cog):
     async def yesterdaysunriser(self, ctx):
         await self.input_discipline("sunriser", ctx, True)
 
-    @commands.command(aliases=["yesterdaySunlight", "yesterdayMorninglight", "yesterdaymorninglight", 'yesterdayMorningsun', 'yesterdaymorningsun', 'yesterdaylight', 'yesterdayLight', "yesterdaysun", "yesterdaySun",], pass_context=True)
-    async def yesterdaysunlight(self, ctx):
-        await self.input_discipline("sunlight", ctx, True)
+    @commands.command(aliases=["yesterdayAlarm", "yesterdaysnooze", "yesterdayawake", "yesterdayAwake", "yesterdayWake", "yesterdaywake"], pass_context=True)
+    async def yesterdayalarm(self, ctx):
+        await self.input_discipline("alarm", ctx, True)
 
     @commands.command(aliases=["yesterdayColdshower", "yesterdayCold", "yesterdaycold", 'yesterdayColdexposure', 'yesterdaycoldexposure'], pass_context=True)
     async def yesterdaycoldshower(self, ctx):
         await self.input_discipline("coldshower", ctx, True)
 
-    @commands.command(aliases=["Alllastmonth"], pass_context=True)
+    @commands.command(aliases=["Alllastmonth"], pass_context=True) # definitely going to have to rewrite this
     async def alllastmonth(self, ctx):
         recordc = pd.read_csv("cogs/Habits Record/personal.csv")
         datef = recordc.iloc[0, :]
@@ -507,7 +507,7 @@ class Economy(commands.Cog):
             recordsr.to_csv("cogs/Habits Record/sunriser.csv", index=False)
         nlsr = recordsrn.index(str(ctx.author.id))
         csr = recordsr.iloc[nlsr, fl:ll+1]
-        recordsl = pd.read_csv("cogs/Habits Record/sunlight.csv")
+        recordsl = pd.read_csv("cogs/Habits Record/alarm.csv")
         recordsln = list(recordsl.iloc[:, 0])
         if str(ctx.author.id) not in recordsln:
             recordsln.append(str(ctx.author.id))
@@ -516,7 +516,7 @@ class Economy(commands.Cog):
             newrs = pd.Series(newr, index=recordsl.columns)
             newrst = newrs.to_frame().T
             recordsl = pd.concat([recordsl, newrst], ignore_index=True)
-            recordsl.to_csv("cogs/Habits Record/sunlight.csv", index=False)
+            recordsl.to_csv("cogs/Habits Record/alarm.csv", index=False)
         nlsl = recordsln.index(str(ctx.author.id))
         csl = recordsl.iloc[nlsl, fl:ll+1]
         recordcs = pd.read_csv("cogs/Habits Record/coldshower.csv")
@@ -557,7 +557,7 @@ class Economy(commands.Cog):
                 ax.plot([col - .5, col - .5], [-0.5, rows+0.5],
                         ls='solid', lw='2.4', c='black')
 
-        discf = ["Makebed", "Earlybird", "Sunlight", "Reading", "Gratitude",
+        discf = ["Makebed", "Earlybird", "Alarm", "Reading", "Gratitude",
                  "Journal", "Meditate", "Workout", "Coldshower", "Personal"]
         # disce = ["$\U0001F601$","$\U0001F426$","$\U0001F305$","$\U0001F4DA$","$\U0001F60A$","$\U0001F4DD$","$\U0001F9D8$","$\U0001F3CB$","$\U0001F6BF$","$\U0001F9CD$"]
 
@@ -842,13 +842,13 @@ class Economy(commands.Cog):
     async def sunrisermonth(self, ctx):
         await self.disciplinemonth("sunriser", ctx)
 
-    @commands.command(aliases=["Sunlightweek", "Morninglightweek", "morninglightweek", "morningsunweek", "Morningsunweek"], pass_context=True)
-    async def sunlightweek(self, ctx):
-        await self.disciplineweek("sunlight", ctx)
+    @commands.command(aliases=[], pass_context=True)
+    async def alarmweek(self, ctx):
+        await self.disciplineweek("alarm", ctx)
 
-    @commands.command(aliases=["Sunlightmonth", "Morninglightmonth", "morninglightmonth", "morningsunmonth", "Morningsunmonth"], pass_context=True)
-    async def sunlightmonth(self, ctx):
-        await self.disciplinemonth("sunlight", ctx)
+    @commands.command(aliases=[], pass_context=True)
+    async def alarmmonth(self, ctx):
+        await self.disciplinemonth("alarm", ctx)
 
     @commands.command(aliases=["Coldshowerweek", "Coldweek", "coldweek", 'Coldexposureweek', 'coldexposureweek'], pass_context=True)
     async def coldshowerweek(self, ctx):
@@ -966,7 +966,7 @@ class Economy(commands.Cog):
             recordsr.to_csv("cogs/Habits Record/sunriser.csv", index=False)
         nlsr = recordsrn.index(str(ctx.author.id))
         csr = recordsr.iloc[nlsr, tl]
-        recordsl = pd.read_csv("cogs/Habits Record/sunlight.csv")
+        recordsl = pd.read_csv("cogs/Habits Record/alarm.csv")
         recordsln = list(recordsl.iloc[:, 0])
         if str(ctx.author.id) not in recordsln:
             recordsln.append(str(ctx.author.id))
@@ -975,7 +975,7 @@ class Economy(commands.Cog):
             newrs = pd.Series(newr, index=recordsl.columns)
             newrst = newrs.to_frame().T
             recordsl = pd.concat([recordsl, newrst], ignore_index=True)
-            recordsl.to_csv("cogs/Habits Record/sunlight.csv", index=False)
+            recordsl.to_csv("cogs/Habits Record/alarm.csv", index=False)
         nlsl = recordsln.index(str(ctx.author.id))
         csl = recordsl.iloc[nlsl, tl]
         recordcs = pd.read_csv("cogs/Habits Record/coldshower.csv")
@@ -991,7 +991,7 @@ class Economy(commands.Cog):
         nlcs = recordcsn.index(str(ctx.author.id))
         ccs = recordcs.iloc[nlcs, tl]
 
-        discf1 = ["Makebed", "Earlybird", "Sunlight", "Reading", "Gratitude"]
+        discf1 = ["Makebed", "Earlybird", "Alarm", "Reading", "Gratitude"]
         discf2 = ["Journal", "Meditate", "Workout", "Cold", "Personal"]
 
         discc1 = [cma, csr, csl, cr, cg]
@@ -1179,7 +1179,7 @@ class Economy(commands.Cog):
             recordsr.to_csv("cogs/Habits Record/sunriser.csv", index=False)
         nlsr = recordsrn.index(person)
         csr = recordsr.iloc[nlsr, fl:ll+1]
-        recordsl = pd.read_csv("cogs/Habits Record/sunlight.csv")
+        recordsl = pd.read_csv("cogs/Habits Record/alarm.csv")
         recordsln = list(recordsl.iloc[:, 0])
         if person not in recordsln:
             recordsln.append(person)
@@ -1188,7 +1188,7 @@ class Economy(commands.Cog):
             newrs = pd.Series(newr, index=recordsl.columns)
             newrst = newrs.to_frame().T
             recordsl = pd.concat([recordsl, newrst], ignore_index=True)
-            recordsl.to_csv("cogs/Habits Record/sunlight.csv", index=False)
+            recordsl.to_csv("cogs/Habits Record/alarm.csv", index=False)
         nlsl = recordsln.index(person)
         csl = recordsl.iloc[nlsl, fl:ll+1]
         recordcs = pd.read_csv("cogs/Habits Record/coldshower.csv")
@@ -1246,7 +1246,7 @@ class Economy(commands.Cog):
 
         print("cell borders have been added to plot")
 
-        discf = ["Makebed", "Earlybird", "Sunlight", "Reading", "Gratitude",
+        discf = ["Makebed", "Earlybird", "Alarm", "Reading", "Gratitude",
                  "Journal", "Meditate", "Workout", "Coldshower", "Personal"]
         # disce = ["$\U0001F601$","$\U0001F426$","$\U0001F305$","$\U0001F4DA$","$\U0001F60A$","$\U0001F4DD$","$\U0001F9D8$","$\U0001F3CB$","$\U0001F6BF$","$\U0001F9CD$"]
 
