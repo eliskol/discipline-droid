@@ -277,7 +277,7 @@ class AccountabilityPartnership:
         other_ap = self.get_other_member_ap()
         if other_ap is not None:
             other_ap.fail_partnership()
-            other_ap.remove_points_from_primary_member(stake)
+            # other_ap.remove_points_from_primary_member(stake)
 
         return stake
 
