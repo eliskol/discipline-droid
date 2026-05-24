@@ -2,10 +2,7 @@ import discord
 from discord.ext import commands
 import os
 import json
-import random
-import numpy as np
 from discord.utils import get
-from datetime import date
 import datetime
 from table2ascii import table2ascii as t2a, PresetStyle, Merge
 import matplotlib as mpl
@@ -13,8 +10,7 @@ import matplotlib.patches as patches
 # mpl.use('TkAgg', force=True)
 from matplotlib import pyplot as plt
 import pandas as pd
-import numpy as np
-from dateutil.relativedelta import relativedelta
+from pytz import timezone
 from dotenv import load_dotenv
 from pathlib import Path
 dotenv_path = Path('test.env')
@@ -40,6 +36,8 @@ class Economy(commands.Cog):
             self.discipline_embed_info = json.load(f)
         self.discipline_to_leaderboard_json_title = {"makebed": "Makebed", "alarm": "Alarm", "sunriser": "Early", "meditation": "Meditate",
                                                      "journal": "Journal", "gratitude": "Gratitude", "workout": "Workout", "coldshower": "Cold", "reading": "Read", "personal": "Goal"}
+        with open('cogs/disciplines.json') as f:
+            self.disciplines = json.load(f)
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -73,20 +71,19 @@ class Economy(commands.Cog):
                 json.dump(user_eco, f, indent=4)
         return user_eco
 
-
-
-    async def input_discipline(self, discipline, ctx, yesterday=False):
+    async def input_discipline(self, discipline, ctx: commands.Context, yesterday=False):
 
         print(f'{ctx.author.name} inputted discipline {discipline}!')
 
         user_eco = self.get_user_eco(ctx)
 
-        rolek1 = discord.utils.get(ctx.guild.roles, name="Officer")
-        rolek2 = discord.utils.get(ctx.guild.roles, name="Admin")
-        roleo = [role for role in ctx.author.roles if role !=
-                 rolek1 and role != rolek2][1:-1]
-        if len(roleo) != 0:
-            await ctx.author.remove_roles(*roleo)
+        # this block of code makes sure that people only have one discipline level role at a time
+        officer_role = discord.utils.get(ctx.guild.roles, name="Officer")
+        admin_role = discord.utils.get(ctx.guild.roles, name="Admin")
+        regular_roles = [role for role in ctx.author.roles if role !=
+                         officer_role and role != admin_role][1:-1]
+        if len(regular_roles) != 0:
+            await ctx.author.remove_roles(*regular_roles)
 
         amount = self.discipline_values[discipline]
         cur = round(user_eco[str(ctx.author.id)]["Growth Points"], 2)
@@ -167,6 +164,8 @@ class Economy(commands.Cog):
                 for b in lead.iloc[:5, a]:
                     score.append(b)
 
+            # this leaderboard embed code could definitely be shortened
+
             new_embed = discord.Embed(
                 title="🏆Self-Improvement Club Leaders🏆",
                 description="Here we commemorate SIC members for their discipline!",
@@ -203,6 +202,7 @@ class Economy(commands.Cog):
 
         gp = user_eco[str(ctx.author.id)]["Growth Points"]
 
+        # create confirmation embed
         eco_embed = discord.Embed(
             title=self.discipline_embed_info[discipline]["just_done"]["title"], description=f"{self.discipline_embed_info[discipline]['just_done']['description']} {ctx.author.mention}", color=discord.Color.green())
         eco_embed.add_field(name="Points Earned:",
@@ -217,6 +217,7 @@ class Economy(commands.Cog):
 
         r = str(ctx.author.top_role)
 
+        # could do to change this into a json file instead of csv, for ease of use
         rolesf = pd.read_csv("cogs/SID Roles.csv")
         # rolesf = rolesf.tolist()
         rolesfn = rolesf.iloc[:, 0]
@@ -235,6 +236,8 @@ class Economy(commands.Cog):
             # role = discord.utils.get(ctx.guild.roles, name=f'{next_rolen}')
             channelm = self.client.get_channel(main_chat_channel)
             await channelm.send(f"Congratulations {ctx.author.mention}! You Have Exemplified Discipline and Have Leveled Up to {next_rolen}")
+
+    # will need to refactor these commands to live inside one command so that we can dynamically add discipline commands according to disciplines.json
 
     @commands.command(aliases=["Vice"], pass_context=True)
     async def ice(self, ctx):
@@ -301,251 +304,94 @@ class Economy(commands.Cog):
             print(channelm)
             await channelm.send(f"{ctx.author.mention}! Due To Your Participation In Your Vice, You Have Been Demoted From {r} to {next_rolen}")
 
-    @commands.command(aliases=["Makebed", "Madebed", "madebed", "Bed", "bed"], pass_context=True)
-    async def makebed(self, context):
-        await self.input_discipline("makebed", context)
+    @commands.command(aliases=["hr"], pass_context=True)
+    async def hreload(self, ctx, *args: str):
+        if ctx.author.id != 292088878767144964:
+            return
+        await self.client.unload_extension("cogs.Economy")
+        await ctx.send("Unloaded cogs.Economy.")
+        await self.client.load_extension("cogs.Economy")
+        await ctx.send("Loaded cogs.Economy.")
 
-    @commands.command(aliases=["Alarm", "snooze", "awake", "Awake", "Wake", "wake"], pass_context=True)
-    async def alarm(self, ctx):
-        await self.input_discipline("alarm", ctx)
+    @commands.command(aliases=["h"], pass_context=True)
+    async def habits(self, context: commands.Context, *args: str):
+        if context.channel.id != progress_reporting_channel:
+            print(
+                f"{context.author} tried to use a habit command outside the proper channel!")
+            return
 
-    @commands.command(aliases=["Sunriser", "earlybird", "Earlybird", "firstwatch", "Firstwatch", "6am", "6AM", "6a.m.", "6A.M.", "early", "Early"], pass_context=True)
-    async def sunriser(self, ctx):
-        await self.input_discipline("sunriser", ctx)
+        arg = args[0].lower()
 
-    @commands.command(aliases=["Meditation", "Mindfulness", "mindfulness", "Peace", "peace", "Namaste", "namaste", "meditate", "Meditate"], pass_context=True)
-    async def meditation(self, ctx):
-        await self.input_discipline("meditation", ctx)
+        detected_discipline = [discipline for discipline in self.disciplines if (
+            arg in self.disciplines[discipline]["aliases"] or arg == discipline)]
 
-    @commands.command(aliases=["Journal", "Diary", "diary", "Log", "log"], pass_context=True)
-    async def journal(self, ctx):
-        await self.input_discipline("journal", ctx)
+        if detected_discipline != []:
+            assert len(detected_discipline) == 1
+            print(f"detected {detected_discipline[0]} from {context.author}")
+            await self.input_discipline(detected_discipline[0], context)
+            return
 
-    @commands.command(aliases=["Gratitude", "Grateful", "grateful", "Gratefulness", "gratefulness", "Thankful", "thankful"], pass_context=True)
-    async def gratitude(self, ctx):
-        await self.input_discipline("gratitude", ctx)
+        detected_yesterday_discipline = [discipline for discipline in self.disciplines if (
+            arg in self.disciplines[discipline]["yesterday_aliases"] or arg == "yesterday" + discipline)]
+        if detected_yesterday_discipline != []:
+            assert len(detected_yesterday_discipline) == 1
+            print(
+                f"detected {detected_yesterday_discipline[0]} from {context.author}")
+            await self.input_discipline(detected_yesterday_discipline[0], context, yesterday=True)
+            return
 
-    @commands.command(aliases=["Workout", "Gym", "gym", "Exercise", "exercise", "Gains", "gains"], pass_context=True)
-    async def workout(self, ctx):
-        await self.input_discipline("workout", ctx)
+        elif args[0].endswith("week"):
+            detected_week_command = [discipline for discipline in self.disciplines if (
+                arg.removesuffix("week") in self.disciplines[discipline]["aliases"] or arg.removesuffix("week") == discipline)]
+            if detected_week_command != []:
+                assert len(detected_week_command) == 1
+                print(
+                    f"detected {detected_week_command[0]}week from {context.author}")
+                await self.disciplineweek(detected_week_command[0], context)
+                return
 
-    @commands.command(aliases=["Coldshower", "Cold", "cold", 'Coldexposure', 'coldexposure'], pass_context=True)
-    async def coldshower(self, ctx):
-        await self.input_discipline("coldshower", ctx)
+        elif args[0].endswith("month"):
+            detected_month_command = [discipline for discipline in self.disciplines if (
+                arg.removesuffix("month") in self.disciplines[discipline]["aliases"] or arg.removesuffix("month") == discipline)]
+            if detected_month_command != []:
+                assert len(detected_month_command) == 1
+                print(
+                    f"detected {detected_month_command[0]}month from {context.author}")
+                await self.disciplinemonth(detected_month_command[0], context)
+                return
 
-    @commands.command(aliases=["Reading", "Read", "read", "Book", "book"], pass_context=True)
-    async def reading(self, ctx):
-        await self.input_discipline("reading", ctx)
-
-    @commands.command(aliases=["Personal", "goal", "Goal"], pass_context=True)
-    async def personal(self, ctx):
-        await self.input_discipline("personal", ctx)
-
-    @commands.command(aliases=["yesterdayRead", "yesterdayread", "yesterdayBook", "yesterdaybook"], pass_context=True)
-    async def yesterdayreading(self, ctx):
-        await self.input_discipline("reading", ctx, True)
-
-    @commands.command(aliases=["yesterdayWorkout", "yesterdayGym", "yesterdaygym", "yesterdayExercise", "yesterdayexercise", "yesterdayGains", "yesterdaygains"], pass_context=True)
-    async def yesterdayworkout(self, ctx):
-        await self.input_discipline("workout", ctx, True)
-
-    @commands.command(aliases=["yesterdayMeditation", "yesterdayMindfulness", "yesterdaymindfulness", "yesterdayPeace", "yesterdaypeace", "yesterdayNamaste", "yesterdaynamaste", "yesterdaymeditate", "yesterdayMeditate"], pass_context=True)
-    async def yesterdaymeditation(self, ctx):
-        await self.input_discipline("meditation", ctx, True)
-
-    @commands.command(aliases=["yesterdayJournal", "yesterdayDiary", "yesterdaydiary", "yesterdayLog", "yesterdaylog"], pass_context=True)
-    async def yesterdayjournal(self, ctx):
-        await self.input_discipline("journal", ctx, True)
-
-    @commands.command(aliases=["yesterdayGratitude", "yesterdayGrateful", "yesterdaygrateful", "yesterdayGratefulness", "yesterdaygratefulness", "yesterdayThankful", "yesterdaythankful"], pass_context=True)
-    async def yesterdaygratitude(self, ctx):
-        await self.input_discipline("gratitude", ctx, True)
-
-    @commands.command(aliases=["yesterdayMakebed", "yesterdayMadebed", "yesterdaymadebed", "yesterdayBed", "yesterdaybed"], pass_context=True)
-    async def yesterdaymakebed(self, ctx):
-        await self.input_discipline("makebed", ctx, True)
-
-    @commands.command(aliases=["yesterdayPersonal", "yesterdaygoal", "yesterdayGoal"], pass_context=True)
-    async def yesterdaypersonal(self, ctx):
-        await self.input_discipline("personal", ctx, True)
-
-    @commands.command(aliases=["yesterdaySunriser", "yesterdayearlybird", "yesterdayEarlybird", "yesterdayfirstwatch", "yesterdayFirstwatch", "yesterday6am", "yesterday6AM", "yesterday6a.m.", "yesterday6A.M.", "yesterdayearly", "yesterdayEarly"], pass_context=True)
-    async def yesterdaysunriser(self, ctx):
-        await self.input_discipline("sunriser", ctx, True)
-
-    @commands.command(aliases=["yesterdayAlarm", "yesterdaysnooze", "yesterdayawake", "yesterdayAwake", "yesterdayWake", "yesterdaywake"], pass_context=True)
-    async def yesterdayalarm(self, ctx):
-        await self.input_discipline("alarm", ctx, True)
-
-    @commands.command(aliases=["yesterdayColdshower", "yesterdayCold", "yesterdaycold", 'yesterdayColdexposure', 'yesterdaycoldexposure'], pass_context=True)
-    async def yesterdaycoldshower(self, ctx):
-        await self.input_discipline("coldshower", ctx, True)
-
-    @commands.command(aliases=["Alllastmonth"], pass_context=True) # definitely going to have to rewrite this
+    @commands.command(aliases=["Alllastmonth"], pass_context=True)
     async def alllastmonth(self, ctx):
-        recordc = pd.read_csv("cogs/Habits Record/personal.csv")
-        datef = recordc.iloc[0, :]
-        dateff = list()
-        type(dateff)
-        for i in list(datef.index.values):
-            dateff.append(i)
+        user_id = ctx.author.id
+        last_month_time = (datetime.datetime.today().astimezone(
+            tz=timezone("US/Pacific")).replace(day=1) - datetime.timedelta(days=1)).date()
+        date_prefix = last_month_time.isoformat()[:-3]
+        last_month_disciplines = {}
+        for discipline in self.disciplines:
+            # make this a helper function to deal with missing members?
+            dataframe = pd.read_csv(
+                f"cogs/Habits Record/{discipline}.csv").query(f'Member == "{user_id}"').filter(like=date_prefix, axis=1)
+            last_month_disciplines[discipline] = list(dataframe.iloc[0])
+            if dataframe.shape[0] == 0:
+                await ctx.send(f"{ctx.author}, you do not have any discipline records for last month!")
+                return
 
-        recordn = recordc.iloc[:, 0]
+        # logic to actually make the figure
 
-        recordn = list(recordn)
+        days_in_month = dataframe.shape[1]
 
-        names = datef.str.extract('([A-Za-z]+) ([A-Za-z]+)')
-        dateffn = names.index.tolist()
-
-        today = (datetime.datetime.utcnow()-datetime.timedelta(hours=8)).date()
-        today = today - relativedelta(months=1)
-        iso_date = today.isoformat()
-        datem = iso_date.split('-')
-        datemf = datem[0] + '-' + datem[1]
-
-        indices = [item for item in dateffn if datemf in item]
-        indice = indices[-1].split('-')[2]
-        monthn = int(indice)
-
-        fl = dateff.index(indices[0])
-        ll = dateff.index(indices[-1])
-        tl = dateff.index(iso_date)
-        recordcn = list(recordc.iloc[:, 0])
-
-        if str(ctx.author.id) not in recordcn:
-            recordcn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordc.columns)
-            newrst = newrs.to_frame().T
-            recordc = pd.concat([recordc, newrst], ignore_index=True)
-            recordc.to_csv("cogs/Habits Record/personal.csv", index=False)
-        nlc = recordcn.index(str(ctx.author.id))
-        cc = recordc.iloc[nlc, fl:ll+1]
-        recordma = pd.read_csv("cogs/Habits Record/makebed.csv")
-        recordman = list(recordma.iloc[:, 0])
-        if str(ctx.author.id) not in recordman:
-            recordman.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordma.columns)
-            newrst = newrs.to_frame().T
-            recordma = pd.concat([recordma, newrst], ignore_index=True)
-            recordma.to_csv("cogs/Habits Record/makebed.csv", index=False)
-        nlma = recordman.index(str(ctx.author.id))
-        cma = recordma.iloc[nlma, fl:ll+1]
-        recordj = pd.read_csv("cogs/Habits Record/journal.csv")
-        recordjn = list(recordj.iloc[:, 0])
-        if str(ctx.author.id) not in recordjn:
-            recordjn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordj.columns)
-            newrst = newrs.to_frame().T
-            recordj = pd.concat([recordj, newrst], ignore_index=True)
-            recordj.to_csv("cogs/Habits Record/journal.csv", index=False)
-        nlj = recordjn.index(str(ctx.author.id))
-        cj = recordj.iloc[nlj, fl:ll+1]
-        recordg = pd.read_csv("cogs/Habits Record/gratitude.csv")
-        recordgn = list(recordg.iloc[:, 0])
-        if str(ctx.author.id) not in recordgn:
-            recordgn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordg.columns)
-            newrst = newrs.to_frame().T
-            recordg = pd.concat([recordg, newrst], ignore_index=True)
-            recordg.to_csv("cogs/Habits Record/gratitude.csv", index=False)
-        nlg = recordgn.index(str(ctx.author.id))
-        cg = recordg.iloc[nlg, fl:ll+1]
-        recordr = pd.read_csv("cogs/Habits Record/reading.csv")
-        recordrn = list(recordr.iloc[:, 0])
-        if str(ctx.author.id) not in recordrn:
-            recordrn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordr.columns)
-            newrst = newrs.to_frame().T
-            recordr = pd.concat([recordr, newrst], ignore_index=True)
-            recordr.to_csv("cogs/Habits Record/reading.csv", index=False)
-        nlr = recordrn.index(str(ctx.author.id))
-        cr = recordr.iloc[nlr, fl:ll+1]
-        recordw = pd.read_csv("cogs/Habits Record/workout.csv")
-        recordwn = list(recordw.iloc[:, 0])
-        if str(ctx.author.id) not in recordwn:
-            recordwn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordw.columns)
-            newrst = newrs.to_frame().T
-            recordw = pd.concat([recordw, newrst], ignore_index=True)
-            recordw.to_csv("cogs/Habits Record/workout.csv", index=False)
-        nlw = recordwn.index(str(ctx.author.id))
-        cw = recordw.iloc[nlw, fl:ll+1]
-        recordme = pd.read_csv("cogs/Habits Record/meditation.csv")
-        recordmen = list(recordme.iloc[:, 0])
-        if str(ctx.author.id) not in recordmen:
-            recordmen.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordme.columns)
-            newrst = newrs.to_frame().T
-            recordme = pd.concat([recordme, newrst], ignore_index=True)
-            recordme.to_csv("cogs/Habits Record/meditation.csv", index=False)
-        nlme = recordmen.index(str(ctx.author.id))
-        cme = recordme.iloc[nlme, fl:ll+1]
-
-        recordsr = pd.read_csv("cogs/Habits Record/sunriser.csv")
-        recordsrn = list(recordsr.iloc[:, 0])
-        if str(ctx.author.id) not in recordsrn:
-            recordsrn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordsr.columns)
-            newrst = newrs.to_frame().T
-            recordsr = pd.concat([recordsr, newrst], ignore_index=True)
-            recordsr.to_csv("cogs/Habits Record/sunriser.csv", index=False)
-        nlsr = recordsrn.index(str(ctx.author.id))
-        csr = recordsr.iloc[nlsr, fl:ll+1]
-        recordsl = pd.read_csv("cogs/Habits Record/alarm.csv")
-        recordsln = list(recordsl.iloc[:, 0])
-        if str(ctx.author.id) not in recordsln:
-            recordsln.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordsl.columns)
-            newrst = newrs.to_frame().T
-            recordsl = pd.concat([recordsl, newrst], ignore_index=True)
-            recordsl.to_csv("cogs/Habits Record/alarm.csv", index=False)
-        nlsl = recordsln.index(str(ctx.author.id))
-        csl = recordsl.iloc[nlsl, fl:ll+1]
-        recordcs = pd.read_csv("cogs/Habits Record/coldshower.csv")
-        recordcsn = list(recordcs.iloc[:, 0])
-        if str(ctx.author.id) not in recordcsn:
-            recordcsn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordcs.columns)
-            newrst = newrs.to_frame().T
-            recordcs = pd.concat([recordcs, newrst], ignore_index=True)
-            recordcs.to_csv("cogs/Habits Record/coldshower.csv", index=False)
-        nlcs = recordcsn.index(str(ctx.author.id))
-        ccs = recordcs.iloc[nlcs, fl:ll+1]
-
-        fig, ax = plt.subplots(figsize=(monthn, 10), dpi=150)
+        fig, ax = plt.subplots(figsize=(days_in_month, 10), dpi=150)
         rows = 10
-        cols = monthn
+        cols = days_in_month
 
         ax.set_ylim(-1, rows + 1)
         ax.set_xlim(0, cols + .5)
 
-        df = pd.DataFrame({'mb10': list(cc), 'mb9': list(ccs), 'mb8': list(cw), 'mb7': list(cme), 'mb6': list(
-            cj), 'mb5': list(cg), 'mb4': list(cr), 'mb3': list(csl), 'mb2': list(csr), 'mb1': list(cma)}).T
-
+        discipline_dataframe = pd.DataFrame.from_dict(last_month_disciplines).T
         plt.cla()
         for col in range(cols):
             for row in range(rows):
-                if int(df.iloc[row, col]) == 1:
+                if int(discipline_dataframe.iloc[row, col]) == 1:
                     ax.text(x=col, y=row, s='\u2713',
                             va='center', ha='center', fontsize=24)
 
@@ -559,13 +405,11 @@ class Economy(commands.Cog):
 
         discf = ["Makebed", "Earlybird", "Alarm", "Reading", "Gratitude",
                  "Journal", "Meditate", "Workout", "Coldshower", "Personal"]
-        # disce = ["$\U0001F601$","$\U0001F426$","$\U0001F305$","$\U0001F4DA$","$\U0001F60A$","$\U0001F4DD$","$\U0001F9D8$","$\U0001F3CB$","$\U0001F6BF$","$\U0001F9CD$"]
 
         bb = -4.25
         for row in range(rows):
             ax.text(x=-0.75, y=row, s=discf[9-row], va='center',
                     ha='right', fontsize=20, weight='bold')
-            # ax.text(x=-3.25, y=row, s=disce[9-row], va='center', ha='right',fontsize=9.5, weight='bold')
             ax.plot([bb, cols-.5], [row - .5, row - .5],
                     ls='solid', lw='2.4', c='black')
 
@@ -578,16 +422,13 @@ class Economy(commands.Cog):
         ax.plot([cols - .5, cols - .5], [-0.5, rows+0.5],
                 ls='solid', lw='3', c='black')
 
-        # rect = patches.Rectangle((int(iso_date.split("-")[2])-1.5, -.5),1,11,ec='none',fc='grey',alpha=.2,zorder=-1)
-        # ax.add_patch(rect)
 
         ax.axis('off')
 
-        now = datetime.datetime.now() - relativedelta(months=1)
-        curmon = now.strftime("%B")
+        last_month_name = last_month_time.strftime("%B")
 
         ax.set_title(
-            f"{ctx.author.global_name}'s Discipline Record Last Month: {curmon}, {now.year}",
+            f"{ctx.author.global_name}'s Discipline Record Last Month: {last_month_name} {last_month_time.year}",
             loc='left',
             fontsize=30,
             weight='bold'
@@ -598,7 +439,6 @@ class Economy(commands.Cog):
 
         await ctx.send(file=discord.File('testfig2.png'))
 
-        # await ctx.send(f"```\n{output}\n```")
 
     @commands.command(aliases=["Ranks",], pass_context=True)
     async def ranks(self, ctx):
@@ -606,20 +446,12 @@ class Economy(commands.Cog):
         rolesf = pd.DataFrame(rolesf)
         output = t2a(
             header=["Rank", "Points"],
-            body=[["Dominus", "2000+"], ["Ultra Instinct", 1650], ["Augustus", 1400], ["Saiyan", 1200],
-                  ["Sultan", 1000], ["Knight", 850], [
-                  "Strategos", 700], ["Full Cowl", 550],
-                  ["Novarch", 400], ["Legatus", 300], [
-                "Spartan", 220], ["Jonin", 160],
-                ["Samurai", 115], ["Sohei", 85], [
-                    "Medjay", 65], ["Gurkha", 50],
-                ["Chunin", 38], ["Kenin", 28], [
-                "Janissary", 18], ["Hapolite", 12],
-                ["Genin", 6], ["Recruit", 0]],
+            body=list(list(row) for row in rolesf.to_numpy()),
             style=PresetStyle.thin_compact
         )
         await ctx.send(f"```\n{output}\n```")
 
+    # perhaps use helper functions for this
     async def disciplineweek(self, discipline, ctx):
         # await ctx.send("reading record now")
         record = pd.read_csv(f"cogs/Habits Record/{discipline}.csv")
@@ -669,6 +501,7 @@ class Economy(commands.Cog):
         # await ctx.send("just made table")
         await ctx.send(f"```\n{output}\n```")
 
+    # use helper functions
     async def disciplinemonth(self, discipline, ctx):
         record = pd.read_csv(f"cogs/Habits Record/{discipline}.csv")
         names = list(record.iloc[:, 0])
@@ -677,7 +510,8 @@ class Economy(commands.Cog):
 
         today = (datetime.datetime.utcnow()-datetime.timedelta(hours=8)).date()
         iso_date = today.isoformat()
-        month_days = list(range(1, int(iso_date.partition('-')[2].partition('-')[2])+1))
+        month_days = list(
+            range(1, int(iso_date.partition('-')[2].partition('-')[2])+1))
         today_index = dateff.index(iso_date)
         beginning_index = today_index - len(month_days) + 1
 
@@ -693,8 +527,10 @@ class Economy(commands.Cog):
 
         name_index = names.index(str(ctx.author.id))
 
-        month_record = record.iloc[name_index, beginning_index: today_index + 1]
-        month_record_checks = ["\u2713" if i == 1 else " " for i in month_record]
+        month_record = record.iloc[name_index,
+                                   beginning_index: today_index + 1]
+        month_record_checks = ["\u2713" if i ==
+                               1 else " " for i in month_record]
 
         month_record_formatted = []
         i = 1
@@ -702,7 +538,8 @@ class Economy(commands.Cog):
             weeks_so_far = int(len(month_record_checks)/7)
             days_so_far_this_week = len(month_record_checks) % 7
             for i in list(range(1, weeks_so_far+1)):
-                month_record_formatted.append(month_record_checks[(i-1)*7:(i*7)])
+                month_record_formatted.append(
+                    month_record_checks[(i-1)*7:(i*7)])
             if days_so_far_this_week != 0:
                 last = []
                 for i in list(range(1, 8)):
@@ -725,7 +562,8 @@ class Economy(commands.Cog):
             month_record_formatted.append(last)
 
         month_day_numbers = list(range(1, 32))
-        month_day_numbers_so_far = month_day_numbers[0:len(month_record_checks)]
+        month_day_numbers_so_far = month_day_numbers[0:len(
+            month_record_checks)]
 
         if len(month_day_numbers_so_far) > 7:
             weeks_so_far = int(len(month_day_numbers_so_far)/7)
@@ -733,7 +571,8 @@ class Economy(commands.Cog):
             month_day_numbers_so_far = list()
             i = 1
             for i in list(range(1, weeks_so_far+1)):
-                month_day_numbers_so_far.append(list(range((i-1)*7+1, (i*7)+1)))
+                month_day_numbers_so_far.append(
+                    list(range((i-1)*7+1, (i*7)+1)))
             if days_so_far_this_week != 0:
                 last = []
                 i = 2
@@ -762,7 +601,8 @@ class Economy(commands.Cog):
             fullm.append(month_day_numbers_so_far[i])
             fullm.append(month_record_formatted[i])
 
-        header = [f"This Month's {self.discipline_embed_info[discipline]['long_name']}"]
+        header = [
+            f"This Month's {self.discipline_embed_info[discipline]['long_name']}"]
         if len(month_record) < 7 and len(month_record) > 1:
             for i in list(range(1, len(month_record))):
                 header.append(Merge.LEFT)
@@ -771,93 +611,13 @@ class Economy(commands.Cog):
                 header.append(Merge.LEFT)
 
         output = t2a(
-            header = header,
-            body = fullm,
-            style = PresetStyle.double_thin_box
+            header=header,
+            body=fullm,
+            style=PresetStyle.double_thin_box
         )
         await ctx.send(f"```\n{output}\n```")
 
-
-    @commands.command(aliases=["Personalweek", "Goalweek", "goalweek"], pass_context=True)
-    async def personalweek(self, ctx):
-        await self.disciplineweek("personal", ctx)
-
-    @commands.command(aliases=["Personalmonth", "Goalmonth", "goalmonth"], pass_context=True)
-    async def personalmonth(self, ctx):
-        await self.disciplinemonth("personal", ctx)
-
-    @commands.command(aliases=["Meditationweek", "Mindfulnessweek", "mindfulnessweek", "Peaceweek", "peaceweek", "Namasteweek", "namasteweek", "meditateweek", "Meditateweek"], pass_context=True)
-    async def meditationweek(self, ctx):
-        await self.disciplineweek("meditation", ctx)
-
-    @commands.command(aliases=["Meditationmonth", "Mindfulnessmonth", "mindfulnessmonth", "Peacemonth", "peacemonth", "Namastemonth", "namastemonth", "meditatemonth", "Meditatemonth"], pass_context=True)
-    async def meditationmonth(self, ctx):
-        await self.disciplinemonth("meditation", ctx)
-
-    @commands.command(aliases=["Workoutweek", "Gymweek", "gymweek", "Exerciseweek", "exerciseweek", "Gainsweek", "gainsweek"], pass_context=True)
-    async def workoutweek(self, ctx):
-        await self.disciplineweek("workout", ctx)
-
-    @commands.command(aliases=["Workoutmonth", "Gymmonth", "gymmonth", "Exercisemonth", "exercisemonth", "Gainsmonth", "gainsmonth"], pass_context=True)
-    async def workoutmonth(self, ctx):
-        await self.disciplinemonth("workout", ctx)
-
-    @commands.command(aliases=["Readingweek", "Readweek", "readweek", "Bookweek", "bookweek"], pass_context=True)
-    async def readingweek(self, ctx):
-        await self.disciplineweek("reading", ctx)
-
-    @commands.command(aliases=["Readingmonth", "Readmonth", "readmonth", "Bookmonth", "bookmonth"], pass_context=True)
-    async def readingmonth(self, ctx):
-        await self.disciplinemonth("reading", ctx)
-
-    @commands.command(aliases=["Gratitudeweek", "Gratefulweek", "gratefulweek", "Gratefulnessweek", "gratefulnessweek", "Thankfulweek", "thankfulweek"], pass_context=True)
-    async def gratitudeweek(self, ctx):
-        await self.disciplineweek("gratitude", ctx)
-
-    @commands.command(aliases=["Gratitudemonth", "Gratefulmonth", "gratefulmonth", "Gratefulnessmonth", "gratefulnessmonth", "Thankfulmonth", "thankfulmonth"], pass_context=True)
-    async def gratitudemonth(self, ctx):
-        await self.disciplinemonth("gratitude", ctx)
-
-    @commands.command(aliases=["Journalweek", "Diaryweek", "diaryweek", "Logweek", "logweek"], pass_context=True)
-    async def journalweek(self, ctx):
-        await self.disciplineweek("journal", ctx)
-
-    @commands.command(aliases=["Journalmonth", "Diarymonth", "diarymonth", "Logmonth", "logmonth"], pass_context=True)
-    async def journalmonth(self, ctx):
-        await self.disciplinemonth("journal", ctx)
-
-    @commands.command(aliases=["Makebedweek", "Madebedweek", "madebedweek"], pass_context=True)
-    async def makebedweek(self, ctx):
-        await self.disciplineweek("makebed", ctx)
-
-    @commands.command(aliases=["Makebedmonth", "Madebedmonth", "madebedmonth"], pass_context=True)
-    async def makebedmonth(self, ctx):
-        await self.disciplinemonth("makebed", ctx)
-
-    @commands.command(aliases=["Sunriserweek", "earlybirdweek", "Earlybirdweek", "firstwatchweek", "Firstwatchweek"], pass_context=True)
-    async def sunriserweek(self, ctx):
-        await self.disciplineweek("sunriser", ctx)
-
-    @commands.command(aliases=["Sunrisermonth", "earlybirdmonth", "Earlybirdmonth", "firstwatchmonth", "Firstwatchmonth"], pass_context=True)
-    async def sunrisermonth(self, ctx):
-        await self.disciplinemonth("sunriser", ctx)
-
-    @commands.command(aliases=[], pass_context=True)
-    async def alarmweek(self, ctx):
-        await self.disciplineweek("alarm", ctx)
-
-    @commands.command(aliases=[], pass_context=True)
-    async def alarmmonth(self, ctx):
-        await self.disciplinemonth("alarm", ctx)
-
-    @commands.command(aliases=["Coldshowerweek", "Coldweek", "coldweek", 'Coldexposureweek', 'coldexposureweek'], pass_context=True)
-    async def coldshowerweek(self, ctx):
-        await self.disciplineweek("coldshower", ctx)
-
-    @commands.command(aliases=["Coldshowermonth", "Coldmonth", "coldmonth", 'Coldexposuremonth', 'coldexposuremonth'], pass_context=True)
-    async def coldshowermonth(self, ctx):
-        await self.disciplinemonth("coldshower", ctx)
-
+    # we can surely make this less than 160 lines...
     @commands.command(aliases=["Today"], pass_context=True)
     async def today(self, ctx):
         recordc = pd.read_csv("cogs/Habits Record/personal.csv")
@@ -1037,204 +797,53 @@ class Economy(commands.Cog):
             await ctx.send('You must have the officer role to use this command')
             return
 
-        await ctx.send('Getting member objects now..')
+        # await ctx.send('Getting member objects now..')
         members = [self.get_member_obj_from_username(
             ctx, username) for username in usernames]
 
-        await ctx.send('Got member objects, now entering loop..')
+        # await ctx.send('Got member objects, now entering loop..')
 
-        await ctx.send(f'Members are: {members=}')
+        # await ctx.send(f'Members are: {members=}')
 
         for member in members:
-            self.generate_discipline_record_for_member(member)
-            await ctx.send(file=discord.File('testfig2.png'))
-            print('inside loop!!!!!')
-            # await ctx.send('Sending discipline record for ', member.name)
+            if self.generate_discipline_record_for_member(member):
+                await ctx.send(file=discord.File('testfig2.png'))
+            else:
+                await ctx.send(f"{ctx.author}, you do not have any discipline records for last month!")
 
+    # can definitely make this shorter as well
     def generate_discipline_record_for_member(self, member):
-        print(f"generating discipline record for user {member.name=}")
-        personn = str(member.name)
-        person = str(member.id)
+        user_id = member.id
+        this_month_time = datetime.datetime.today().astimezone(
+            tz=timezone("US/Pacific")).date()
+        date_prefix = this_month_time.isoformat()[:-3]
+        this_month_disciplines = {}
+        for discipline in self.disciplines:
+            # make this a helper function to deal with missing members?
+            dataframe = pd.read_csv(
+                f"cogs/Habits Record/{discipline}.csv").query(f'Member == "{user_id}"').filter(like=date_prefix, axis=1)
+            this_month_disciplines[discipline] = list(dataframe.iloc[0])
+            if dataframe.shape[0] == 0:
+                return False
 
-        print('test1')
-        recordc = pd.read_csv("cogs/Habits Record/personal.csv")
-        datef = recordc.iloc[0, :]
-        dateff = list()
-        type(dateff)
-        for i in list(datef.index.values):
-            dateff.append(i)
+        # logic to actually make the figure
 
-        recordn = recordc.iloc[:, 0]
+        days_in_month = dataframe.shape[1]
 
-        recordn = list(recordn)
-
-        names = datef.str.extract('([A-Za-z]+) ([A-Za-z]+)')
-        dateffn = names.index.tolist()
-
-        today = (datetime.datetime.utcnow()-datetime.timedelta(hours=8)).date()
-        iso_date = today.isoformat()
-        datem = iso_date.split('-')
-        datemf = datem[0] + '-' + datem[1]
-
-        indices = [item for item in dateffn if datemf in item]
-        indice = indices[-1].split('-')[2]
-        monthn = int(indice)
-
-        fl = dateff.index(indices[0])
-        ll = dateff.index(indices[-1])
-        tl = dateff.index(iso_date)
-        recordcn = list(recordc.iloc[:, 0])
-        if person not in recordcn:
-            recordcn.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordc.columns)
-            newrst = newrs.to_frame().T
-            recordc = pd.concat([recordc, newrst], ignore_index=True)
-            recordc.to_csv("cogs/Habits Record/personal.csv", index=False)
-        nlc = recordcn.index(person)
-        cc = recordc.iloc[nlc, fl:ll+1]
-        recordma = pd.read_csv("cogs/Habits Record/makebed.csv")
-        recordman = list(recordma.iloc[:, 0])
-        if person not in recordman:
-            recordman.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordma.columns)
-            newrst = newrs.to_frame().T
-            recordma = pd.concat([recordma, newrst], ignore_index=True)
-            recordma.to_csv("cogs/Habits Record/makebed.csv", index=False)
-        nlma = recordman.index(person)
-        cma = recordma.iloc[nlma, fl:ll+1]
-        recordj = pd.read_csv("cogs/Habits Record/journal.csv")
-        recordjn = list(recordj.iloc[:, 0])  # get 1st row of df
-        if person not in recordjn:
-            recordjn.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordj.columns)
-            newrst = newrs.to_frame().T
-            recordj = pd.concat([recordj, newrst], ignore_index=True)
-            recordj.to_csv("cogs/Habits Record/journal.csv", index=False)
-        nlj = recordjn.index(person)
-        cj = recordj.iloc[nlj, fl:ll+1]
-        recordg = pd.read_csv("cogs/Habits Record/gratitude.csv")
-        recordgn = list(recordg.iloc[:, 0])  # gets the first column
-        if person not in recordgn:
-            recordgn.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordg.columns)
-            newrst = newrs.to_frame().T
-            recordg = pd.concat([recordg, newrst], ignore_index=True)
-            recordg.to_csv("cogs/Habits Record/gratitude.csv", index=False)
-        nlg = recordgn.index(person)
-        cg = recordg.iloc[nlg, fl:ll+1]
-        recordr = pd.read_csv("cogs/Habits Record/reading.csv")
-        recordrn = list(recordr.iloc[:, 0])
-        if person not in recordrn:
-            recordrn.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordr.columns)
-            newrst = newrs.to_frame().T
-            recordr = pd.concat([recordr, newrst], ignore_index=True)
-            recordr.to_csv("cogs/Habits Record/reading.csv", index=False)
-        nlr = recordrn.index(person)
-        cr = recordr.iloc[nlr, fl:ll+1]
-        recordw = pd.read_csv("cogs/Habits Record/workout.csv")
-        recordwn = list(recordw.iloc[:, 0])
-        if person not in recordwn:
-            recordwn.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordw.columns)
-            newrst = newrs.to_frame().T
-            recordw = pd.concat([recordw, newrst], ignore_index=True)
-            recordw.to_csv("cogs/Habits Record/workout.csv", index=False)
-        nlw = recordwn.index(person)
-        cw = recordw.iloc[nlw, fl:ll+1]
-        recordme = pd.read_csv("cogs/Habits Record/meditation.csv")
-        recordmen = list(recordme.iloc[:, 0])
-        if person not in recordmen:
-            recordmen.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordme.columns)
-            newrst = newrs.to_frame().T
-            recordme = pd.concat([recordme, newrst], ignore_index=True)
-            recordme.to_csv("cogs/Habits Record/meditation.csv", index=False)
-        nlme = recordmen.index(person)
-        cme = recordme.iloc[nlme, fl:ll+1]
-
-        recordsr = pd.read_csv("cogs/Habits Record/sunriser.csv")
-        recordsrn = list(recordsr.iloc[:, 0])
-        if person not in recordsrn:
-            recordsrn.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordsr.columns)
-            newrst = newrs.to_frame().T
-            recordsr = pd.concat([recordsr, newrst], ignore_index=True)
-            recordsr.to_csv("cogs/Habits Record/sunriser.csv", index=False)
-        nlsr = recordsrn.index(person)
-        csr = recordsr.iloc[nlsr, fl:ll+1]
-        recordsl = pd.read_csv("cogs/Habits Record/alarm.csv")
-        recordsln = list(recordsl.iloc[:, 0])
-        if person not in recordsln:
-            recordsln.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordsl.columns)
-            newrst = newrs.to_frame().T
-            recordsl = pd.concat([recordsl, newrst], ignore_index=True)
-            recordsl.to_csv("cogs/Habits Record/alarm.csv", index=False)
-        nlsl = recordsln.index(person)
-        csl = recordsl.iloc[nlsl, fl:ll+1]
-        recordcs = pd.read_csv("cogs/Habits Record/coldshower.csv")
-        recordcsn = list(recordcs.iloc[:, 0])
-        if person not in recordcsn:
-            recordcsn.append(person)
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, person)
-            newrs = pd.Series(newr, index=recordcs.columns)
-            newrst = newrs.to_frame().T
-            recordcs = pd.concat([recordcs, newrst], ignore_index=True)
-            recordcs.to_csv("cogs/Habits Record/coldshower.csv", index=False)
-        nlcs = recordcsn.index(person)
-        ccs = recordcs.iloc[nlcs, fl:ll+1]
-
-        fig, ax = plt.subplots(figsize=(monthn, 10), dpi=150)
+        fig, ax = plt.subplots(figsize=(days_in_month, 10), dpi=150)
         rows = 10
-        cols = monthn
+        cols = days_in_month
 
         ax.set_ylim(-1, rows + 1)
         ax.set_xlim(0, cols + .5)
 
-        all_discipline_records = [cc, ccs, cw, cme, cj, cg, cr, csl, csr, cma]
-
-        df = pd.DataFrame({'mb10': list(cc), 'mb9': list(ccs), 'mb8': list(cw), 'mb7': list(cme), 'mb6': list(
-            cj), 'mb5': list(cg), 'mb4': list(cr), 'mb3': list(csl), 'mb2': list(csr), 'mb1': list(cma)}).T
-
-        print("dataframe has been generated")
-
+        discipline_dataframe = pd.DataFrame.from_dict(this_month_disciplines).T
         plt.cla()
-        print("plt.cla() was just called")
         for col in range(cols):
             for row in range(rows):
-                print("now we're checking if this discipline was done")
-                if int(df.iloc[row, col]) == 1:
-                    print("yes, done")
+                if int(discipline_dataframe.iloc[row, col]) == 1:
                     ax.text(x=col, y=row, s='\u2713',
                             va='center', ha='center', fontsize=24)
-                print(f"row {row+1} of {rows}, col {col+1} of {cols}")
-        print("checkmarks have been added to plot")
-
-        for col in range(cols):
-            ax.text(x=col, y=-1, s=int(sum((list(discipline)
-                    [col] for discipline in all_discipline_records))), va='center', ha='center', fontsize=24)
-
-        print("total disciplines has been added to plot")
 
         for col in range(cols):
             ax.text(col, 9.75, col+1, weight='bold', ha='center', fontsize=20)
@@ -1244,21 +853,15 @@ class Economy(commands.Cog):
                 ax.plot([col - .5, col - .5], [-0.5, rows+0.5],
                         ls='solid', lw='2.4', c='black')
 
-        print("cell borders have been added to plot")
-
         discf = ["Makebed", "Earlybird", "Alarm", "Reading", "Gratitude",
                  "Journal", "Meditate", "Workout", "Coldshower", "Personal"]
-        # disce = ["$\U0001F601$","$\U0001F426$","$\U0001F305$","$\U0001F4DA$","$\U0001F60A$","$\U0001F4DD$","$\U0001F9D8$","$\U0001F3CB$","$\U0001F6BF$","$\U0001F9CD$"]
 
         bb = -4.25
         for row in range(rows):
             ax.text(x=-0.75, y=row, s=discf[9-row], va='center',
                     ha='right', fontsize=20, weight='bold')
-            # ax.text(x=-3.25, y=row, s=disce[9-row], va='center', ha='right',fontsize=9.5, weight='bold')
             ax.plot([bb, cols-.5], [row - .5, row - .5],
                     ls='solid', lw='2.4', c='black')
-
-        print("more stuff added to plot, not sure what")
 
         ax.text(x=-0.65, y=9.90, s="Disciplines\\Days", va='center',
                 ha='right', fontsize=17, weight='bold')
@@ -1269,34 +872,21 @@ class Economy(commands.Cog):
         ax.plot([cols - .5, cols - .5], [-0.5, rows+0.5],
                 ls='solid', lw='3', c='black')
 
-        rect = patches.Rectangle((int(iso_date.split(
-            "-")[2])-1.5, -.5), 1, 11, ec='none', fc='grey', alpha=.2, zorder=-1)
-        ax.add_patch(rect)
 
         ax.axis('off')
 
-        now = datetime.datetime.now()
-        curmon = now.strftime("%B")
+        this_month_name = this_month_time.strftime("%B")
 
         ax.set_title(
-            f"{personn}'s Discipline Record: {curmon}, {now.year}",
+            f"{member}'s Discipline Record This Month: {this_month_name} {this_month_time.year}",
             loc='left',
             fontsize=30,
             weight='bold'
         )
-
-        print("title has been added to plot")
-
         # plt.figure(figsize=(10,20))
 
         fig.savefig('testfig2.png', bbox_inches='tight', pad_inches=1)
-
-        print(f"discipline record for user {member.name=} has been saved")
-
-        # await ctx.send(f"```\n{output}\n```")
-
-        # await ctx.send(f"```\n{output}\n```")
-
+        return True
 
 async def setup(client):
     await client.add_cog(Economy(client))
