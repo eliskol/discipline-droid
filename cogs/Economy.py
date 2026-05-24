@@ -362,82 +362,10 @@ class Economy(commands.Cog):
 
     @commands.command(aliases=["Alllastmonth"], pass_context=True)
     async def alllastmonth(self, ctx):
-        user_id = ctx.author.id
-        last_month_time = (datetime.datetime.today().astimezone(
-            tz=timezone("US/Pacific")).replace(day=1) - datetime.timedelta(days=1)).date()
-        date_prefix = last_month_time.isoformat()[:-3]
-        last_month_disciplines = {}
-        for discipline in self.disciplines:
-            # make this a helper function to deal with missing members?
-            dataframe = pd.read_csv(
-                f"cogs/Habits Record/{discipline}.csv").query(f'Member == "{user_id}"').filter(like=date_prefix, axis=1)
-            last_month_disciplines[discipline] = list(dataframe.iloc[0])
-            if dataframe.shape[0] == 0:
-                await ctx.send(f"{ctx.author}, you do not have any discipline records for last month!")
-                return
-
-        # logic to actually make the figure
-
-        days_in_month = dataframe.shape[1]
-
-        fig, ax = plt.subplots(figsize=(days_in_month, 10), dpi=150)
-        rows = 10
-        cols = days_in_month
-
-        ax.set_ylim(-1, rows + 1)
-        ax.set_xlim(0, cols + .5)
-
-        discipline_dataframe = pd.DataFrame.from_dict(last_month_disciplines).T
-        plt.cla()
-        for col in range(cols):
-            for row in range(rows):
-                if int(discipline_dataframe.iloc[row, col]) == 1:
-                    ax.text(x=col, y=row, s='\u2713',
-                            va='center', ha='center', fontsize=24)
-
-        for col in range(cols):
-            ax.text(col, 9.75, col+1, weight='bold', ha='center', fontsize=20)
-            ax.plot([col - .5, col - .5], [-0.5, rows+0.5],
-                    ls='solid', lw='1', c='grey')
-            if col % 10 == 0:
-                ax.plot([col - .5, col - .5], [-0.5, rows+0.5],
-                        ls='solid', lw='2.4', c='black')
-
-        discf = ["Makebed", "Earlybird", "Alarm", "Reading", "Gratitude",
-                 "Journal", "Meditate", "Workout", "Coldshower", "Personal"]
-
-        bb = -4.25
-        for row in range(rows):
-            ax.text(x=-0.75, y=row, s=discf[9-row], va='center',
-                    ha='right', fontsize=20, weight='bold')
-            ax.plot([bb, cols-.5], [row - .5, row - .5],
-                    ls='solid', lw='2.4', c='black')
-
-        ax.text(x=-0.65, y=9.90, s="Disciplines\\Days", va='center',
-                ha='right', fontsize=17, weight='bold')
-        ax.plot([bb, cols-.5], [9.5, 9.5], ls='solid', lw='2.4', c='black')
-        ax.plot([bb, cols-.5], [10.5, 10.5], ls='solid', lw='3', c='black')
-        ax.plot([bb, cols-.5], [-.5, -.5], ls='solid', lw='3', c='black')
-        ax.plot([bb, bb], [-0.5, rows+0.5], ls='solid', lw='3', c='black')
-        ax.plot([cols - .5, cols - .5], [-0.5, rows+0.5],
-                ls='solid', lw='3', c='black')
-
-
-        ax.axis('off')
-
-        last_month_name = last_month_time.strftime("%B")
-
-        ax.set_title(
-            f"{ctx.author.global_name}'s Discipline Record Last Month: {last_month_name} {last_month_time.year}",
-            loc='left',
-            fontsize=30,
-            weight='bold'
-        )
-        # plt.figure(figsize=(10,20))
-
-        fig.savefig('testfig2.png', bbox_inches='tight', pad_inches=1)
-
-        await ctx.send(file=discord.File('testfig2.png'))
+        if self.generate_discipline_record_for_member(ctx.author, True):
+            await ctx.send(file=discord.File('testfig2.png'))
+        else:
+            await ctx.send(f"{ctx.author}, you don't have any discipline records for last month!")
 
 
     @commands.command(aliases=["Ranks",], pass_context=True)
@@ -788,8 +716,10 @@ class Economy(commands.Cog):
 
     @commands.command(aliases=["Allmonth"], pass_context=True)
     async def allmonth(self, ctx):
-        self.generate_discipline_record_for_member(ctx.author)
-        await ctx.send(file=discord.File('testfig2.png'))
+        if self.generate_discipline_record_for_member(ctx.author):
+            await ctx.send(file=discord.File('testfig2.png'))
+        else:
+            await ctx.send(f"{ctx.author}, you don't have any discipline records for this month!")
 
     @commands.command(aliases=["Show"], pass_context=True)
     async def show(self, ctx, *usernames):
@@ -811,11 +741,11 @@ class Economy(commands.Cog):
             else:
                 await ctx.send(f"{ctx.author}, you do not have any discipline records for last month!")
 
-    # can definitely make this shorter as well
-    def generate_discipline_record_for_member(self, member):
+    def generate_discipline_record_for_member(self, member, last_mo=False):
         user_id = member.id
         this_month_time = datetime.datetime.today().astimezone(
-            tz=timezone("US/Pacific")).date()
+            tz=timezone("US/Pacific")).date() if last_mo is False else (datetime.datetime.today().astimezone(
+                tz=timezone("US/Pacific")).replace(day=1) - datetime.timedelta(days=1)).date()
         date_prefix = this_month_time.isoformat()[:-3]
         this_month_disciplines = {}
         for discipline in self.disciplines:
@@ -878,12 +808,11 @@ class Economy(commands.Cog):
         this_month_name = this_month_time.strftime("%B")
 
         ax.set_title(
-            f"{member}'s Discipline Record This Month: {this_month_name} {this_month_time.year}",
+            f"{member}'s Discipline Record for {this_month_name} {this_month_time.year}",
             loc='left',
             fontsize=30,
             weight='bold'
         )
-        # plt.figure(figsize=(10,20))
 
         fig.savefig('testfig2.png', bbox_inches='tight', pad_inches=1)
         return True
