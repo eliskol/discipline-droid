@@ -27,7 +27,7 @@ main_chat_channel = int(os.getenv('main_chat_channel'))
 client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
 
-class Economy(commands.Cog):
+class Habits(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.discipline_values = {"makebed": 0.2, "alarm": 0.25, "sunriser": 0.5, "meditation": 0.5,
@@ -308,10 +308,10 @@ class Economy(commands.Cog):
     async def hreload(self, ctx, *args: str):
         if ctx.author.id != 292088878767144964:
             return
-        await self.client.unload_extension("cogs.Economy")
-        await ctx.send("Unloaded cogs.Economy.")
-        await self.client.load_extension("cogs.Economy")
-        await ctx.send("Loaded cogs.Economy.")
+        await self.client.unload_extension("cogs.Habits")
+        await ctx.send("Unloaded cogs.Habits.")
+        await self.client.load_extension("cogs.Habits")
+        await ctx.send("Loaded cogs.Habits.")
 
     @commands.command(aliases=["h"], pass_context=True)
     async def habits(self, context: commands.Context, *args: str):
@@ -676,4 +676,4 @@ class Economy(commands.Cog):
         return True
 
 async def setup(client):
-    await client.add_cog(Economy(client))
+    await client.add_cog(Habits(client))

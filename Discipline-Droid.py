@@ -299,7 +299,7 @@ async def on_reaction_add(reaction, user):
 
 async def load():
     for filename in os.listdir("./cogs"):
-        if filename.endswith("Economy.py") or filename.endswith("ping.py") or filename.endswith("Accountability.py"):
+        if filename.endswith("Habits.py") or filename.endswith("ping.py") or filename.endswith("Accountability.py"):
             await client.load_extension(f"cogs.{filename[:-3]}")
 
 
