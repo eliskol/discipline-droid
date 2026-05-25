@@ -30,14 +30,11 @@ client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 class Habits(commands.Cog):
     def __init__(self, client):
         self.client = client
-        self.discipline_values = {"makebed": 0.2, "alarm": 0.25, "sunriser": 0.5, "meditation": 0.5,
-                                  "journal": 1, "gratitude": 0.3, "workout": 1, "coldshower": 0.5, "reading": 0.5, "personal": 1}
-        with open('cogs/discipline_embed_info.json') as f:
-            self.discipline_embed_info = json.load(f)
         self.discipline_to_leaderboard_json_title = {"makebed": "Makebed", "alarm": "Alarm", "sunriser": "Early", "meditation": "Meditate",
                                                      "journal": "Journal", "gratitude": "Gratitude", "workout": "Workout", "coldshower": "Cold", "reading": "Read", "personal": "Goal"}
         with open('cogs/disciplines.json') as f:
             self.disciplines = json.load(f)
+        self.discipline_values = {discipline: self.disciplines[discipline]["points"] for discipline in self.disciplines}
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -112,8 +109,8 @@ class Habits(commands.Cog):
         nl = recordn.index(str(ctx.author.id))
 
         if record.iloc[nl, tl] == 1:
-            eco_embed = discord.Embed(title=self.discipline_embed_info[discipline]["alr_done"]["title"],
-                                      description=f"{self.discipline_embed_info[discipline]['alr_done']['description']} {ctx.author.mention}", color=discord.Color.red())
+            eco_embed = discord.Embed(title=self.disciplines[discipline]["alr_done"]["title"],
+                                      description=f"{self.disciplines[discipline]['alr_done']['description']} {ctx.author.mention}", color=discord.Color.red())
             channelp = self.client.get_channel(progress_reporting_channel)
             await channelp.send(embed=eco_embed)
             return
@@ -204,12 +201,12 @@ class Habits(commands.Cog):
 
         # create confirmation embed
         eco_embed = discord.Embed(
-            title=self.discipline_embed_info[discipline]["just_done"]["title"], description=f"{self.discipline_embed_info[discipline]['just_done']['description']} {ctx.author.mention}", color=discord.Color.green())
+            title=self.disciplines[discipline]["just_done"]["title"], description=f"{self.disciplines[discipline]['just_done']['description']} {ctx.author.mention}", color=discord.Color.green())
         eco_embed.add_field(name="Points Earned:",
                             value=f'{amount}', inline=False)
         eco_embed.add_field(name="Total Growth Points:",
                             value=f"{user_eco[str(ctx.author.id)]['Growth Points']}", inline=False)
-        eco_embed.add_field(name=f"{self.discipline_embed_info[discipline]['long_name']} Streak:",
+        eco_embed.add_field(name=f"{self.disciplines[discipline]['long_name']} Streak:",
                             value=f"{streak} Day{'s' if streak > 1 else ''}")
         channelp = self.client.get_channel(progress_reporting_channel)
         await channelp.send(embed=eco_embed)
@@ -421,7 +418,7 @@ class Habits(commands.Cog):
         # await ctx.send("just made pairing list")
         output = t2a(
             header=[
-                f"This Week's {self.discipline_embed_info[discipline]['long_name']}", Merge.LEFT],
+                f"This Week's {self.disciplines[discipline]['long_name']}", Merge.LEFT],
             body=weekday_discipline_pairing_list,
             style=PresetStyle.double_thin_box
         )
@@ -529,7 +526,7 @@ class Habits(commands.Cog):
             fullm.append(month_record_formatted[i])
 
         header = [
-            f"This Month's {self.discipline_embed_info[discipline]['long_name']}"]
+            f"This Month's {self.disciplines[discipline]['long_name']}"]
         if len(month_record) < 7 and len(month_record) > 1:
             for i in list(range(1, len(month_record))):
                 header.append(Merge.LEFT)
