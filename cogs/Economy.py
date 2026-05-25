@@ -367,7 +367,6 @@ class Economy(commands.Cog):
         else:
             await ctx.send(f"{ctx.author}, you don't have any discipline records for last month!")
 
-
     @commands.command(aliases=["Ranks",], pass_context=True)
     async def ranks(self, ctx):
         rolesf = pd.read_csv("cogs/SID Roles.csv")
@@ -546,171 +545,31 @@ class Economy(commands.Cog):
         await ctx.send(f"```\n{output}\n```")
 
     # we can surely make this less than 160 lines...
-    @commands.command(aliases=["Today"], pass_context=True)
-    async def today(self, ctx):
-        recordc = pd.read_csv("cogs/Habits Record/personal.csv")
-        datef = recordc.iloc[0, :]
-        dateff = list()
-        type(dateff)
-        for i in list(datef.index.values):
-            dateff.append(i)
 
-        today = (datetime.datetime.utcnow()-datetime.timedelta(hours=8)).date()
-        iso_date = today.isoformat()
-        tl = dateff.index(iso_date)
-        recordcn = list(recordc.iloc[:, 0])
-        if str(ctx.author.id) not in recordcn:
-            recordcn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordc.columns)
-            newrst = newrs.to_frame().T
-            recordc = pd.concat([recordc, newrst], ignore_index=True)
-            recordc.to_csv("cogs/Habits Record/personal.csv", index=False)
-        nlc = recordcn.index(str(ctx.author.id))
-        cc = recordc.iloc[nlc, tl]
-        recordma = pd.read_csv("cogs/Habits Record/makebed.csv")
-        recordman = list(recordma.iloc[:, 0])
-        if str(ctx.author.id) not in recordman:
-            recordman.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordma.columns)
-            newrst = newrs.to_frame().T
-            recordma = pd.concat([recordma, newrst], ignore_index=True)
-            recordma.to_csv("cogs/Habits Record/makebed.csv", index=False)
-        nlma = recordman.index(str(ctx.author.id))
-        cma = recordma.iloc[nlma, tl]
-        recordj = pd.read_csv("cogs/Habits Record/journal.csv")
-        recordjn = list(recordj.iloc[:, 0])
-        if str(ctx.author.id) not in recordjn:
-            recordjn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordj.columns)
-            newrst = newrs.to_frame().T
-            recordj = pd.concat([recordj, newrst], ignore_index=True)
-            recordj.to_csv("cogs/Habits Record/journal.csv", index=False)
-        nlj = recordjn.index(str(ctx.author.id))
-        cj = recordj.iloc[nlj, tl]
-        recordg = pd.read_csv("cogs/Habits Record/gratitude.csv")
-        recordgn = list(recordg.iloc[:, 0])
-        if str(ctx.author.id) not in recordgn:
-            recordgn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordg.columns)
-            newrst = newrs.to_frame().T
-            recordg = pd.concat([recordg, newrst], ignore_index=True)
-            recordg.to_csv("cogs/Habits Record/gratitude.csv", index=False)
-        nlg = recordgn.index(str(ctx.author.id))
-        cg = recordg.iloc[nlg, tl]
-        recordr = pd.read_csv("cogs/Habits Record/reading.csv")
-        recordrn = list(recordr.iloc[:, 0])
-        if str(ctx.author.id) not in recordrn:
-            recordrn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordr.columns)
-            newrst = newrs.to_frame().T
-            recordr = pd.concat([recordr, newrst], ignore_index=True)
-            recordr.to_csv("cogs/Habits Record/reading.csv", index=False)
-        nlr = recordrn.index(str(ctx.author.id))
-        cr = recordr.iloc[nlr, tl]
-        recordw = pd.read_csv("cogs/Habits Record/workout.csv")
-        recordwn = list(recordw.iloc[:, 0])
-        if str(ctx.author.id) not in recordwn:
-            recordwn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordw.columns)
-            newrst = newrs.to_frame().T
-            recordw = pd.concat([recordw, newrst], ignore_index=True)
-            recordw.to_csv("cogs/Habits Record/workout.csv", index=False)
-        nlw = recordwn.index(str(ctx.author.id))
-        cw = recordw.iloc[nlw, tl]
-        recordme = pd.read_csv("cogs/Habits Record/meditation.csv")
-        recordmen = list(recordme.iloc[:, 0])
-        if str(ctx.author.id) not in recordmen:
-            recordmen.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordme.columns)
-            newrst = newrs.to_frame().T
-            recordme = pd.concat([recordme, newrst], ignore_index=True)
-            recordme.to_csv("cogs/Habits Record/meditation.csv", index=False)
-        nlme = recordmen.index(str(ctx.author.id))
-        cme = recordme.iloc[nlme, tl]
-
-        recordsr = pd.read_csv("cogs/Habits Record/sunriser.csv")
-        recordsrn = list(recordsr.iloc[:, 0])
-        if str(ctx.author.id) not in recordsrn:
-            recordsrn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordsr.columns)
-            newrst = newrs.to_frame().T
-            recordsr = pd.concat([recordsr, newrst], ignore_index=True)
-            recordsr.to_csv("cogs/Habits Record/sunriser.csv", index=False)
-        nlsr = recordsrn.index(str(ctx.author.id))
-        csr = recordsr.iloc[nlsr, tl]
-        recordsl = pd.read_csv("cogs/Habits Record/alarm.csv")
-        recordsln = list(recordsl.iloc[:, 0])
-        if str(ctx.author.id) not in recordsln:
-            recordsln.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordsl.columns)
-            newrst = newrs.to_frame().T
-            recordsl = pd.concat([recordsl, newrst], ignore_index=True)
-            recordsl.to_csv("cogs/Habits Record/alarm.csv", index=False)
-        nlsl = recordsln.index(str(ctx.author.id))
-        csl = recordsl.iloc[nlsl, tl]
-        recordcs = pd.read_csv("cogs/Habits Record/coldshower.csv")
-        recordcsn = list(recordcs.iloc[:, 0])
-        if str(ctx.author.id) not in recordcsn:
-            recordcsn.append(str(ctx.author.id))
-            newr = [0] * (len(dateff)-1)
-            newr.insert(0, str(ctx.author.id))
-            newrs = pd.Series(newr, index=recordcs.columns)
-            newrst = newrs.to_frame().T
-            recordcs = pd.concat([recordcs, newrst], ignore_index=True)
-            recordcs.to_csv("cogs/Habits Record/coldshower.csv", index=False)
-        nlcs = recordcsn.index(str(ctx.author.id))
-        ccs = recordcs.iloc[nlcs, tl]
-
-        discf1 = ["Makebed", "Earlybird", "Alarm", "Reading", "Gratitude"]
-        discf2 = ["Journal", "Meditate", "Workout", "Cold", "Personal"]
-
-        discc1 = [cma, csr, csl, cr, cg]
-        discc2 = [cj, cme, cw, ccs, cc]
-
-        discd1 = []
-        discd2 = []
-        full = []
-        for i in list(range(0, len(discf1))):
-            if discc1[i] == 1:
-                discd1 = "\u2713"
-            else:
-                discd1 = (' ')
-
-            if discc2[i] == 1:
-                discd2 = "\u2713"
-            else:
-                discd2 = (' ')
-
-            full.append([discf1[i], discd1, discf2[i], discd2])
-
-        todayd = "Today's Disciplines"
-
-        if all(discc1):
-            if all(discc2):
-                todayd = "\u2605 Today's Disciplines \u2605"
-
+    @commands.command(pass_context=True)
+    async def today(self, ctx: commands.Context):
+        user_id = ctx.author.id
+        today_string = datetime.datetime.today().astimezone(
+            tz=timezone("US/Pacific")).date().isoformat()
+        today_results = {}
+        for discipline in self.disciplines:
+            today_result = pd.read_csv(f"cogs/Habits Record/{discipline}.csv").query(
+                f'Member == "{user_id}"').filter(like=today_string, axis=1).iloc[0, 0]
+            today_results[discipline] = today_result
+        disciplines_row_1 = [discipline.capitalize()
+                             for discipline in list(self.disciplines.keys())[::2]]
+        disciplines_row_2 = [discipline.capitalize()
+                             for discipline in list(self.disciplines.keys())[1::2]]
+        table_body = []
+        for i in range(len(disciplines_row_1)):
+            row_1_indicator = "\u2713" if today_results[disciplines_row_1[i].lower()] == 1 else " "
+            row_2_indicator = "\u2713" if today_results[disciplines_row_2[i].lower()] == 1 else " "
+            table_body.append([disciplines_row_1[i], row_1_indicator, disciplines_row_2[i], row_2_indicator])
+        title = "Today's Disciplines"
         output = t2a(
-            header=[todayd, Merge.LEFT, Merge.LEFT, Merge.LEFT],
-            body=full,
-            style=PresetStyle.double_thin_box
+            header=[title, Merge.LEFT, Merge.LEFT, Merge.LEFT],
+            body = table_body,
+            style = PresetStyle.double_thin_box
         )
         await ctx.send(f"```\n{output}\n```")
 
@@ -801,7 +660,6 @@ class Economy(commands.Cog):
         ax.plot([bb, bb], [-0.5, rows+0.5], ls='solid', lw='3', c='black')
         ax.plot([cols - .5, cols - .5], [-0.5, rows+0.5],
                 ls='solid', lw='3', c='black')
-
 
         ax.axis('off')
 
