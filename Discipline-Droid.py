@@ -27,36 +27,12 @@ accountability_channel_id = int(os.getenv('accountability_channel'))
 # Initialize the bot with all intents
 client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 client.embed_message = None
+
+with open('cogs/disciplines.json') as f:
+    disciplines = json.load(f)
+
 # List of 10 reactions (you can change these emojis)
-REACTIONS = ["🛏️", "⏰", "🌅", "🧘", "📝", "🙏", "🏋", "🚿", "📖", "🌟"]
-
-# Reaction triggers for specific actions
-TREACTION_COMMANDS = {
-    "🛏️": "makebed",
-    "⏰": "alarm",
-    "🌅": "earlybird",
-    "🧘": "meditation",
-    "📝": "journal",
-    "🙏": "gratitude",
-    "🏋": "workout",
-    "🚿": "coldshower",
-    "📖": "reading",  # Trigger the "reading" command
-    "🌟": "personal"  # Trigger the "vice" command
-}
-
-YREACTION_COMMANDS = {
-    "🛏️": "yesterdaymakebed",
-    "⏰": "yesterdayalarm",
-    "🌅": "yesterdayearlybird",
-    "🧘": "yesterdaymeditation",
-    "📝": "yesterdayjournal",
-    "🙏": "yesterdaygratitude",
-    "🏋": "yesterdayworkout",
-    "🚿": "yesterdaycoldshower",
-    "📖": "yesterdayreading",  # Trigger the "reading" command
-    "🌟": "yesterdaypersonal"
-}
-
+REACTIONS = {disciplines[discipline]["emoji"] : discipline for discipline in disciplines}
 
 @client.event
 async def on_ready():
@@ -122,13 +98,13 @@ async def send_startup_message():
         today = todayr.isoformat()
         disc = ['coldshower', 'gratitude', 'journal', 'makebed', 'meditation',
                 'personal', 'reading', 'alarm', 'sunriser', 'workout']
-        for a in disc: # adding current day to csv file if it isn't there already
+        for a in disc:  # adding current day to csv file if it isn't there already
             record = pd.read_csv(f"cogs/Habits Record/{a}.csv")
             if today != record.columns[-1]:
                 record[today] = 0
                 record.to_csv(f"cogs/Habits Record/{a}.csv", index=False)
 
-        fix_csvs() # just in case
+        fix_csvs()  # just in case
 
         print("line 124")
 
@@ -254,7 +230,8 @@ async def check_accountability_partnerships():
                 print("failed! failed to log")
                 points_lost = ap.fail_partnership()
                 await accountability_channel.send(f"<@{id}> and <@{ap.other_member}>, your Accountability Partnership went uncompleted and has ended. You lost {points_lost} points.")
-            else: print("still in!")
+            else:
+                print("still in!")
 
     else:
         with open("cogs/accountability.json", "w") as write:
@@ -273,28 +250,22 @@ async def on_reaction_add(reaction, user):
     today = todayr.isoformat()
     yesterdayr = todayr - datetime.timedelta(days=1)
     yesterday = yesterdayr.isoformat()
-    mdate = (reaction.message.created_at.astimezone(tz=timezone("US/Pacific"))).date()
+    mdate = (reaction.message.created_at.astimezone(
+        tz=timezone("US/Pacific"))).date()
     mdate = str(mdate)
     # Check if it's a bot message and the emoji is in the reaction commands
-    if reaction.message.author == client.user and reaction.emoji in TREACTION_COMMANDS and today == mdate:
+    if reaction.message.author == client.user and reaction.emoji in REACTIONS and today == mdate:
         ctx = await client.get_context(reaction.message)
         ctx.author = user
-        command_name = TREACTION_COMMANDS[reaction.emoji]
+        habits = client.get_cog('Habits')
+        await habits.input_discipline(REACTIONS[reaction.emoji], ctx)
 
-        # Find the command and invoke it with the context
-        command = client.get_command(command_name)
-        if command:
-            await ctx.invoke(command)
 
-    if reaction.message.author == client.user and reaction.emoji in YREACTION_COMMANDS and yesterday == mdate:
+    if reaction.message.author == client.user and reaction.emoji in REACTIONS and yesterday == mdate:
         ctx = await client.get_context(reaction.message)
         ctx.author = user
-        command_name = YREACTION_COMMANDS[reaction.emoji]
-
-        # Find the command and invoke it with the context
-        command = client.get_command(command_name)
-        if command:
-            await ctx.invoke(command)
+        habits = client.get_cog('Habits')
+        await habits.input_discipline(REACTIONS[reaction.emoji], ctx, yesterday=True)
 
 
 async def load():
