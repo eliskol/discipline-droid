@@ -36,6 +36,8 @@ REACTIONS = {disciplines[discipline]["emoji"] : discipline for discipline in dis
 
 @client.event
 async def on_ready():
+    for discipline in disciplines:
+        client.get_cog('Habits').update_all_streaks_for_discipline(discipline)
     await send_leaderboard_message()
     print(f"boutta call send_startup_message")
     await send_startup_message()  # Send a message at startup
@@ -49,33 +51,16 @@ async def send_leaderboard_message():
     if leaderboard_channel:
         embed = discord.Embed(
             title="🏆 Self-Improvement Club Leaders 🏆",
-            description="Here we commemorate SIC members for their discipline!",
+            description="Here we commemorate SIC members for their discipline! Highest current streaks:",
             color=discord.Color.green()
         )
-        embed.add_field(name="Total Growth Points",
-                        value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(name="Monthly Growth Points",
-                        value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(
-            name="🛏️ Make Bed", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(
-            name="⏰ Alarm", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(
-            name="🌅 Early Bird", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(
-            name="🧘 Meditation", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(
-            name="📝 Journaling", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(
-            name="🙏 Gratitude", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(
-            name="🏋 Workouts", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(name="🚿 Cold Showers",
-                        value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(
-            name="📖 Reading", value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
-        embed.add_field(name="🌟 Personal Goals",
-                        value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
+        habits = client.get_cog('Habits')
+        for discipline in disciplines:
+            user_id, streak = habits.get_longest_current_streak_for_discipline(discipline)
+            embed.add_field(
+                name = f'{disciplines[discipline]["emoji"]} {disciplines[discipline]["long_name"]}',
+                value = f'<@{user_id}>: {int(streak)} Days'
+            )
 
     print(f"last message id is {leaderboard_channel.last_message_id}")
     previous_message = await leaderboard_channel.fetch_message(leaderboard_channel.last_message_id)
