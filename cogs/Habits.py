@@ -34,7 +34,6 @@ class Habits(commands.Cog):
                                                      "journal": "Journal", "gratitude": "Gratitude", "workout": "Workout", "coldshower": "Cold", "reading": "Read", "personal": "Goal"}
         with open('cogs/disciplines.json') as f:
             self.disciplines = json.load(f)
-        self.discipline_values = {discipline: self.disciplines[discipline]["points"] for discipline in self.disciplines}
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -54,8 +53,34 @@ class Habits(commands.Cog):
             if member.name == username:
                 return member
 
-    def update_leaderboard_for_discipline(self, ctx, discipline_name):
-        pass
+    def get_longest_current_streak_for_discipline(self, discipline_name) -> tuple[int]:
+        """returns (id, streak)"""
+        if discipline_name not in self.disciplines:
+            print('Error in get_longest_current_streak_for_discipline')
+        discipline_record = pd.read_csv(
+            f"cogs/Habits Record/{discipline_name}.csv")
+        row_with_max = discipline_record["Streak"].idxmax()
+        user_id_with_max = discipline_record.iloc[row_with_max]["Member"]
+        max_streak = discipline_record.iloc[row_with_max]["Streak"]
+        return (user_id_with_max, max_streak)
+
+    @staticmethod
+    def update_all_streaks_for_discipline(discipline_name):
+        discipline_record = pd.read_csv(
+            f"cogs/Habits Record/{discipline_name}.csv")
+        discipline_record["Streak"] = discipline_record.apply(
+            Habits.current_streak, axis=1)
+        discipline_record.to_csv(
+            f"cogs/Habits Record/{discipline_name}.csv", index=False)
+
+    @staticmethod
+    def current_streak(row: pd.Series):
+        yesterday_date_string = (datetime.datetime.today() - datetime.timedelta(days=1)).astimezone(
+            tz=timezone("US/Pacific")).date().isoformat()
+        if row[yesterday_date_string] == 0:
+            return 0
+        row = row.iloc[2:]
+        return row[row.index <= yesterday_date_string][::-1].cumprod().sum()
 
     def get_user_eco(self, ctx):
         with open("cogs/eco.json", "r") as f:
@@ -68,238 +93,109 @@ class Habits(commands.Cog):
                 json.dump(user_eco, f, indent=4)
         return user_eco
 
+    async def remove_extra_roles(self, ctx):
+        officer_role = discord.utils.get(ctx.guild.roles, name="Officer")
+        admin_role = discord.utils.get(ctx.guild.roles, name="Admin")
+        discipline_roles = [role for role in ctx.author.roles if role !=
+                            officer_role and role != admin_role][1:-1]
+        if len(discipline_roles) != 0:
+            await ctx.author.remove_roles(*discipline_roles)
+
     async def input_discipline(self, discipline, ctx: commands.Context, yesterday=False):
 
         print(f'{ctx.author.name} inputted discipline {discipline}!')
 
         user_eco = self.get_user_eco(ctx)
 
-        # this block of code makes sure that people only have one discipline level role at a time
-        officer_role = discord.utils.get(ctx.guild.roles, name="Officer")
-        admin_role = discord.utils.get(ctx.guild.roles, name="Admin")
-        regular_roles = [role for role in ctx.author.roles if role !=
-                         officer_role and role != admin_role][1:-1]
-        if len(regular_roles) != 0:
-            await ctx.author.remove_roles(*regular_roles)
+        self.remove_extra_roles(ctx)
 
-        amount = self.discipline_values[discipline]
-        cur = round(user_eco[str(ctx.author.id)]["Growth Points"], 2)
-        new = cur + amount
-        user_eco[str(ctx.author.id)]["Growth Points"] = round(new, 2)
-
-        record = pd.read_csv(f"cogs/Habits Record/{discipline}.csv")
+        discipline_record = pd.read_csv(f"cogs/Habits Record/{discipline}.csv")
         # get first column of {discipline}.csv file (user ids)
-        recordn = list(record.iloc[:, 0])
-        datef = record.iloc[0, :]  # get the first row (dates)
+        user_ids_in_discipline_file = list(discipline_record.iloc[:, 0])
+        dates_in_discipline_file = discipline_record.iloc[0, :]  # get the first row (dates)
 
         # reduced this to a list comp
-        dateff = [date for date in datef.index.values]
-        today = (datetime.datetime.utcnow()-datetime.timedelta(hours=8)).date()
-        iso_date = today.isoformat()
+        dates_in_file_as_strings = [date for date in dates_in_discipline_file.index.values]
+        today = datetime.datetime.today().astimezone(
+            tz=timezone("US/Pacific")).date()
+        today_iso_date = today.isoformat()
         # using the fact that True has an int value of 1
-        tl = dateff.index(iso_date) - yesterday
+        col_index_of_date_to_input = dates_in_file_as_strings.index(today_iso_date) - yesterday
 
-        if str(ctx.author.id) not in recordn:
-            recordn.append((str(ctx.author.id)))
-            newr = [0] * (len(dateff)-1)
+        if str(ctx.author.id) not in user_ids_in_discipline_file:
+            user_ids_in_discipline_file.append((str(ctx.author.id)))
+            newr = [0] * (len(dates_in_file_as_strings)-1)
             newr.insert(0, (str(ctx.author.id)))
-            newrs = pd.Series(newr, index=record.columns)
+            newrs = pd.Series(newr, index=discipline_record.columns)
             newrst = newrs.to_frame().T
-            record = pd.concat([record, newrst], ignore_index=True)
-        nl = recordn.index(str(ctx.author.id))
+            discipline_record = pd.concat([discipline_record, newrst], ignore_index=True)
+        row_index_for_user = user_ids_in_discipline_file.index(str(ctx.author.id))
 
-        if record.iloc[nl, tl] == 1:
+        if discipline_record.iloc[row_index_for_user, col_index_of_date_to_input] == 1:
             eco_embed = discord.Embed(title=self.disciplines[discipline]["alr_done"]["title"],
                                       description=f"{self.disciplines[discipline]['alr_done']['description']} {ctx.author.mention}", color=discord.Color.red())
             channelp = self.client.get_channel(progress_reporting_channel)
             await channelp.send(embed=eco_embed)
             return
+
+        points_discipline_is_worth = self.disciplines[discipline]["points"]
+        current_points = round(user_eco[str(ctx.author.id)]["Growth Points"], 2)
+        new_points = current_points + points_discipline_is_worth
+        user_eco[str(ctx.author.id)]["Growth Points"] = round(new_points, 2)
+
         with open("cogs/eco.json", "w") as f:
             json.dump(user_eco, f, indent=4)
 
         gp = user_eco[str(ctx.author.id)]["Growth Points"]
-        record.iloc[nl, tl] = 1
-        idrec = record.iloc[nl, 2:tl+1]
-        idrec0 = idrec == 0
-        idrec0 = idrec0.reset_index(drop=True)
-        sorl = idrec0[idrec0].index.max()
-        streak = len(idrec0.iloc[sorl+1:])
-        lead = pd.read_csv("cogs/Habits Record/leaderboard.csv")
-        col_index = list(lead.columns).index(
-            self.discipline_to_leaderboard_json_title[discipline])
-        print(f'col_index is {col_index}')
-        leadhp = lead.iloc[0:5, col_index]
-        leadhn = lead.iloc[5:, col_index]
-        leadtp = lead.iloc[0:5, 2]
-        leadtn = lead.iloc[5:, 2]
-        leadmp = lead.iloc[0:5, 3]
-        leadmn = lead.iloc[5:, 3]
-        id = int(ctx.author.id)
-        if streak > min(leadhp):
-            if id in leadhn.values:
-                leadhn.index = list(range(5))
-                ind = leadhn.index[leadhn == id][0]
-                leadhp[ind] = streak
-            else:
-                leadhp[5] = streak
-                leadhn.index = list(range(5))
-                leadhn[5] = str(ctx.author.id)
-            leadhp = leadhp.sort_values(ascending=False).iloc[0:5]
-            ind = leadhp.index
-            leadhn = leadhn.reindex(ind)
-            leadhn.index = list(range(5, 10))
-            lead.iloc[:5, col_index] = leadhp
-            lead.iloc[5:, col_index] = leadhn
-            ids = []
-            score = []
-            for a in list(range(1, 13)):
-                for b in lead.iloc[5:, a]:
-                    ids.append(b)
-            idsf = ["<@" + str(a) + ">" for a in ids]
-            for a in list(range(1, 13)):
-                print(1)
-                for b in lead.iloc[:5, a]:
-                    score.append(b)
+        discipline_record.iloc[row_index_for_user, col_index_of_date_to_input] = 1
+        streak = discipline_record.iloc[row_index_for_user, 1] + 1
 
-            # this leaderboard embed code could definitely be shortened
-
-            new_embed = discord.Embed(
-                title="🏆Self-Improvement Club Leaders🏆",
-                description="Here we commemorate SIC members for their discipline!",
-                color=discord.Color.green()
-            )
-            new_embed.add_field(name="Total Growth Points",
-                                value=f"🥇 {idsf[0]} | {score[0]} Points\n🥈 {idsf[1]} | {score[1]} Points\n🥉 {idsf[2]} | {score[2]} Points\n4. {idsf[3]} | {score[3]} Points\n5. {idsf[4]} | {score[4]} Points", inline=True)
-            new_embed.add_field(name="Monthly Growth Points",
-                                value=f"🥇 {idsf[5]} | {score[5]} Points\n🥈 {idsf[6]} | {score[6]} Points\n🥉 {idsf[7]} | {score[7]} Points\n4. {idsf[8]} | {score[8]} Points\n5. {idsf[9]} | {score[9]} Points", inline=True)
-            new_embed.add_field(
-                name="🛏️ Make Bed", value=f"🥇 {idsf[10]} | {score[10]} Days\n🥈 {idsf[11]} | {score[11]} Days\n🥉 {idsf[12]} | {score[12]} Days\n4. {idsf[13]} | {score[13]} Days\n5. {idsf[14]} | {score[14]} Days", inline=True)
-            new_embed.add_field(
-                name="⏰ Alarm", value=f"🥇 {idsf[15]} | {score[15]} Days\n🥈 {idsf[16]} | {score[16]} Days\n🥉 {idsf[17]} | {score[17]} Days\n4. {idsf[18]} | {score[18]} Days\n5. {idsf[19]} | {score[19]} Days", inline=True)
-            new_embed.add_field(
-                name="🌅 Early Bird", value=f"🥇 {idsf[20]} | {score[20]} Days\n🥈 {idsf[21]} | {score[21]} Days\n🥉 {idsf[22]} | {score[22]} Days\n4. {idsf[23]} | {score[23]} Days\n5. {idsf[24]} | {score[24]} Days", inline=True)
-            new_embed.add_field(
-                name="🧘 Meditation", value=f"🥇 {idsf[25]} | {score[25]} Days\n🥈 {idsf[26]} | {score[26]} Days\n🥉 {idsf[27]} | {score[27]} Days\n4. {idsf[28]} | {score[28]} Days\n5. {idsf[29]} | {score[29]} Days", inline=True)
-            new_embed.add_field(
-                name="📝 Journaling", value=f"🥇 {idsf[30]} | {score[30]} Days\n🥈 {idsf[31]} | {score[31]} Days\n🥉 {idsf[32]} | {score[32]} Days\n4. {idsf[33]} | {score[33]} Days\n5. {idsf[34]} | {score[34]} Days", inline=True)
-            new_embed.add_field(
-                name="🙏 Gratitude", value=f"🥇 {idsf[35]} | {score[35]} Days\n🥈 {idsf[36]} | {score[36]} Days\n🥉 {idsf[37]} | {score[37]} Days\n4. {idsf[38]} | {score[38]} Days\n5. {idsf[39]} | {score[39]} Days", inline=True)
-            new_embed.add_field(
-                name="🏋 Workouts", value=f"🥇 {idsf[40]} | {score[40]} Days\n🥈 {idsf[41]} | {score[41]} Days\n🥉 {idsf[42]} | {score[42]} Days\n4. {idsf[43]} | {score[43]} Days\n5. {idsf[44]} | {score[44]} Days", inline=True)
-            new_embed.add_field(
-                name="🚿 Cold Showers", value=f"🥇 {idsf[45]} | {score[45]} Days\n🥈 {idsf[46]} | {score[46]} Days\n🥉 {idsf[47]} | {score[47]} Days\n4. {idsf[48]} | {score[48]} Days\n5. {idsf[49]} | {score[49]} Days", inline=True)
-            new_embed.add_field(
-                name="📖 Reading", value=f"🥇 {idsf[50]} | {score[50]} Days\n🥈 {idsf[51]} | {score[51]} Days\n🥉 {idsf[52]} | {score[52]} Days\n4. {idsf[53]} | {score[53]} Days\n5. {idsf[54]} | {score[54]} Days", inline=True)
-            new_embed.add_field(
-                name="🌟 Personal Goals", value=f"🥇 {idsf[55]} | {score[55]} Days\n🥈 {idsf[56]} | {score[56]} Days\n🥉 {idsf[57]} | {score[57]} Days\n4. {idsf[58]} | {score[58]} Days\n5. {idsf[59]} | {score[59]} Days", inline=True)
-            await self.client.embed_message.edit(embed=new_embed)
-            lead.to_csv("cogs/Habits Record/leaderboard.csv", index=False)
-        record.to_csv(f"cogs/Habits Record/{discipline}.csv", index=False)
+        discipline_record.to_csv(f"cogs/Habits Record/{discipline}.csv", index=False)
         print('discipline csv should have been saved now')
 
-        gp = user_eco[str(ctx.author.id)]["Growth Points"]
+        self.update_all_streaks_for_discipline(discipline)
+
+        new_embed = discord.Embed(
+            title="🏆Self-Improvement Club Leaders🏆",
+            description="Here we commemorate SIC members for their discipline! Highest current streaks:",
+            color=discord.Color.green()
+        )
+        for discipline in self.disciplines:
+            user_id, longest_streak = self.get_longest_current_streak_for_discipline(discipline)
+            new_embed.add_field(
+                name = f'{self.disciplines[discipline]["emoji"]} {self.disciplines[discipline]["long_name"]}',
+                value = f'<@{user_id}>: {int(longest_streak)} Days'
+            )
+        await self.client.embed_message.edit(embed=new_embed)
 
         # create confirmation embed
         eco_embed = discord.Embed(
             title=self.disciplines[discipline]["just_done"]["title"], description=f"{self.disciplines[discipline]['just_done']['description']} {ctx.author.mention}", color=discord.Color.green())
         eco_embed.add_field(name="Points Earned:",
-                            value=f'{amount}', inline=False)
+                            value=f'{points_discipline_is_worth}', inline=False)
         eco_embed.add_field(name="Total Growth Points:",
                             value=f"{user_eco[str(ctx.author.id)]['Growth Points']}", inline=False)
         eco_embed.add_field(name=f"{self.disciplines[discipline]['long_name']} Streak:",
                             value=f"{streak} Day{'s' if streak > 1 else ''}")
         channelp = self.client.get_channel(progress_reporting_channel)
         await channelp.send(embed=eco_embed)
-        print("embed should have been sent")
 
         r = str(ctx.author.top_role)
 
         # could do to change this into a json file instead of csv, for ease of use
-        rolesf = pd.read_csv("cogs/SID Roles.csv")
-        # rolesf = rolesf.tolist()
-        rolesfn = rolesf.iloc[:, 0]
-        rolesfp = rolesf.iloc[:, 1]
-        rolesfn = rolesfn.tolist()
+        roles_df = pd.read_csv("cogs/SID Roles.csv")
+        role_names = roles_df.iloc['SID Role'].tolist()
+        role_points = roles_df.iloc['Growth Points']
 
-        rp = rolesfn.index(r)
-        next_rolep = rolesfp[rp-1]
-        next_rolen = rolesfn[(rp-1)]
-        if gp >= next_rolep:
-            # join_role = discord.utils.get(ctx.guild.roles, name = f'{next_rolen}')
-            # await ctx.add_roles(join_role)
+        rp = role_names.index(r)
+        next_role_points = role_points[rp - 1]
+        next_role_name = role_names[rp - 1]
+        if gp >= next_role_points:
             member = ctx.author
-            role = get(member.guild.roles, name=f'{next_rolen}')
+            role = get(member.guild.roles, name=f'{next_role_name}')
             await member.add_roles(role)
-            # role = discord.utils.get(ctx.guild.roles, name=f'{next_rolen}')
             channelm = self.client.get_channel(main_chat_channel)
-            await channelm.send(f"Congratulations {ctx.author.mention}! You Have Exemplified Discipline and Have Leveled Up to {next_rolen}")
-
-    # will need to refactor these commands to live inside one command so that we can dynamically add discipline commands according to disciplines.json
-
-    @commands.command(aliases=["Vice"], pass_context=True)
-    async def ice(self, ctx):
-        with open("cogs/eco.json", "r") as f:
-            user_eco = json.load(f)
-
-        if str(ctx.author.id) not in user_eco:
-
-            user_eco[str(ctx.author.id)] = {}
-            user_eco[str(ctx.author.id)]["Growth Points"] = 0
-
-            with open("cogs/eco.json", "w") as f:
-                json.dump(user_eco, f, indent=4)
-
-        r = str(ctx.author.top_role)
-
-        print(r)
-
-        rolesf = pd.read_csv("cogs/SID Roles.csv")
-        # rolesf = rolesf.tolist()
-        rolesfn = rolesf.iloc[:, 0]
-        rolesfp = rolesf.iloc[:, 1]
-        rolesfn = rolesfn.tolist()
-
-        rp = rolesfn.index(r)
-        cur_rolep = rolesfp[rp]
-        next_rolep = rolesfp[rp+1]
-        next_rolen = rolesfn[(rp+1)]
-        print(r)
-        print(next_rolen)
-        print(next_rolep)
-
-        cur = round(user_eco[str(ctx.author.id)]["Growth Points"], 2)
-        amount = next_rolep - cur_rolep
-        print(amount)
-        new = cur + amount
-        amount = -amount
-        user_eco[str(ctx.author.id)]["Growth Points"] = round(new, 2)
-
-        with open("cogs/eco.json", "w") as f:
-            json.dump(user_eco, f, indent=4)
-
-        gp = user_eco[str(ctx.author.id)]["Growth Points"]
-        eco_embed = discord.Embed(
-            title="Vice Recorded", description=f"Remember, Failure Isn't Falling Down. Failure Is Not Getting Back Up After Such A Fall, {ctx.author.mention}", color=discord.Color.red())
-        eco_embed.add_field(name="Points Deducted:",
-                            value=f'{amount}', inline=False)
-        eco_embed.add_field(name="Total Growth Points:",
-                            value=f"{user_eco[str(ctx.author.id)]['Growth Points']}")
-        channelp = self.client.get_channel(progress_reporting_channel)
-        print(type(channelp))
-        await channelp.send(embed=eco_embed)
-
-        if gp == gp:
-            # join_role = discord.utils.get(ctx.guild.roles, name = f'{next_rolen}')
-            # await ctx.add_roles(join_role)
-            print(gp)
-            member = ctx.author
-            role = get(member.guild.roles, name=f'{r}')
-            print(role)
-            await member.remove_roles(role)
-            # role = discord.utils.get(ctx.guild.roles, name=f'{next_rolen}')
-            channelm = self.client.get_channel(main_chat_channel)
-            print(channelm)
-            await channelm.send(f"{ctx.author.mention}! Due To Your Participation In Your Vice, You Have Been Demoted From {r} to {next_rolen}")
+            await channelm.send(f"Congratulations {ctx.author.mention}! You Have Exemplified Discipline and Have Leveled Up to {next_role_name}")
 
     @commands.command(aliases=["hr"], pass_context=True)
     async def hreload(self, ctx, *args: str):
@@ -385,7 +281,8 @@ class Habits(commands.Cog):
 
         dateff = [date for date in datef.index.values]
         # await ctx.send("just made date array")
-        today = (datetime.datetime.utcnow()-datetime.timedelta(hours=8)).date()
+        today = datetime.datetime.today().astimezone(
+            tz=timezone("US/Pacific")).date()
         iso_date = today.isoformat()
         weekday = today.isoweekday()
         today_index = dateff.index(iso_date)
@@ -425,14 +322,15 @@ class Habits(commands.Cog):
         # await ctx.send("just made table")
         await ctx.send(f"```\n{output}\n```")
 
-    # use helper functions
+    # use helper functions (shorten this function....)
     async def disciplinemonth(self, discipline, ctx):
         record = pd.read_csv(f"cogs/Habits Record/{discipline}.csv")
         names = list(record.iloc[:, 0])
         datef = record.iloc[0, :]
         dateff = [date for date in datef.index.values]
 
-        today = (datetime.datetime.utcnow()-datetime.timedelta(hours=8)).date()
+        today = datetime.datetime.today().astimezone(
+            tz=timezone("US/Pacific")).date()
         iso_date = today.isoformat()
         month_days = list(
             range(1, int(iso_date.partition('-')[2].partition('-')[2])+1))
@@ -541,8 +439,6 @@ class Habits(commands.Cog):
         )
         await ctx.send(f"```\n{output}\n```")
 
-    # we can surely make this less than 160 lines...
-
     @commands.command(pass_context=True)
     async def today(self, ctx: commands.Context):
         user_id = ctx.author.id
@@ -553,20 +449,23 @@ class Habits(commands.Cog):
             today_result = pd.read_csv(f"cogs/Habits Record/{discipline}.csv").query(
                 f'Member == "{user_id}"').filter(like=today_string, axis=1).iloc[0, 0]
             today_results[discipline] = today_result
-        disciplines_row_1 = [discipline.capitalize()
+        disciplines_row_1  = [discipline.capitalize()
                              for discipline in list(self.disciplines.keys())[::2]]
         disciplines_row_2 = [discipline.capitalize()
                              for discipline in list(self.disciplines.keys())[1::2]]
         table_body = []
         for i in range(len(disciplines_row_1)):
-            row_1_indicator = "\u2713" if today_results[disciplines_row_1[i].lower()] == 1 else " "
-            row_2_indicator = "\u2713" if today_results[disciplines_row_2[i].lower()] == 1 else " "
-            table_body.append([disciplines_row_1[i], row_1_indicator, disciplines_row_2[i], row_2_indicator])
+            row_1_indicator = "\u2713" if today_results[disciplines_row_1[i].lower(
+            )] == 1 else " "
+            row_2_indicator = "\u2713" if today_results[disciplines_row_2[i].lower(
+            )] == 1 else " "
+            table_body.append(
+                [disciplines_row_1[i], row_1_indicator, disciplines_row_2[i], row_2_indicator])
         title = "Today's Disciplines"
         output = t2a(
             header=[title, Merge.LEFT, Merge.LEFT, Merge.LEFT],
-            body = table_body,
-            style = PresetStyle.double_thin_box
+            body=table_body,
+            style=PresetStyle.double_thin_box
         )
         await ctx.send(f"```\n{output}\n```")
 
@@ -671,6 +570,14 @@ class Habits(commands.Cog):
 
         fig.savefig('testfig2.png', bbox_inches='tight', pad_inches=1)
         return True
+
+    @commands.command(pass_context=True)
+    async def testleaderboard(self, ctx):
+        for discipline in self.disciplines:
+            self.update_all_streaks_for_discipline(discipline)
+            await ctx.send(f"longest for {discipline} is {self.get_longest_current_streak_for_discipline(discipline)}")
+
+# make a monthly discipline challenge handler
 
 async def setup(client):
     await client.add_cog(Habits(client))
