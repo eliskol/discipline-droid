@@ -60,6 +60,7 @@ YREACTION_COMMANDS = {
 
 @client.event
 async def on_ready():
+    print("on_ready was called")
     await send_leaderboard_message()
     print(f"boutta call send_startup_message")
     await send_startup_message()  # Send a message at startup
@@ -71,6 +72,7 @@ async def on_ready():
 async def send_leaderboard_message():
     leaderboard_channel = client.get_channel(leaderboard_channel_id)
     if leaderboard_channel:
+        print('send_leaderboard_message: creating leaderboard embed right now')
         embed = discord.Embed(
             title="🏆 Self-Improvement Club Leaders 🏆",
             description="Here we commemorate SIC members for their discipline!",
@@ -102,11 +104,16 @@ async def send_leaderboard_message():
                         value=f"1. Test\n2. Test\n3. Test\n4. Test\n5. Test", inline=True)
 
     print(f"last message id is {leaderboard_channel.last_message_id}")
-    previous_message = await leaderboard_channel.fetch_message(leaderboard_channel.last_message_id)
-    if previous_message.author.id == client.application_id and previous_message.created_at.date() == datetime.datetime.now(datetime.timezone.utc).date():
-        await previous_message.delete()
+    try:
+        previous_message = await leaderboard_channel.fetch_message(leaderboard_channel.last_message_id)
+        if previous_message.author.id == client.application_id and previous_message.created_at.date() == datetime.datetime.now(datetime.timezone.utc).date():
+            await previous_message.delete()
+    except discord.NotFound or discord.Forbidden or discord.HTTPException:
+        print("unable to find the last message in the leaderboard channel")
+    print("send_leaderboard_message: just attempted to fetch the previous message in the leaderboard channel")
 
     client.embed_message = await leaderboard_channel.send(embed=embed)
+    print("send_leaderboard_message: reached the end of the method")
 
 # Function to send the message at startup
 
