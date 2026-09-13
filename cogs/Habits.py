@@ -107,7 +107,7 @@ class Habits(commands.Cog):
 
         user_eco = self.get_user_eco(ctx)
 
-        self.remove_extra_roles(ctx)
+        await self.remove_extra_roles(ctx)
 
         discipline_record = pd.read_csv(f"cogs/Habits Record/{discipline}.csv")
         # get first column of {discipline}.csv file (user ids)
@@ -160,10 +160,10 @@ class Habits(commands.Cog):
             description="Here we commemorate SIC members for their discipline! Highest current streaks:",
             color=discord.Color.green()
         )
-        for discipline in self.disciplines:
-            user_id, longest_streak = self.get_longest_current_streak_for_discipline(discipline)
+        for disc in self.disciplines:
+            user_id, longest_streak = self.get_longest_current_streak_for_discipline(disc)
             new_embed.add_field(
-                name = f'{self.disciplines[discipline]["emoji"]} {self.disciplines[discipline]["long_name"]}',
+                name = f'{self.disciplines[disc]["emoji"]} {self.disciplines[disc]["long_name"]}',
                 value = f'<@{user_id}>: {int(longest_streak)} Days'
             )
         await self.client.embed_message.edit(embed=new_embed)
@@ -211,6 +211,9 @@ class Habits(commands.Cog):
         if context.channel.id != progress_reporting_channel:
             print(
                 f"{context.author} tried to use a habit command outside the proper channel!")
+            return
+
+        if len(args) == 0:
             return
 
         arg = args[0].lower()
