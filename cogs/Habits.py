@@ -83,13 +83,13 @@ class Habits(commands.Cog):
         return row[row.index <= yesterday_date_string][::-1].cumprod().sum()
 
     def get_user_eco(self, ctx):
-        with open("cogs/eco.json", "r") as f:
+        with open("cogs/point_totals.json", "r") as f:
             user_eco = json.load(f)
         if str(ctx.author.id) not in user_eco:
             user_eco[str(ctx.author.id)] = {}
             user_eco[str(ctx.author.id)]["Growth Points"] = 0
 
-            with open("cogs/eco.json", "w") as f:
+            with open("cogs/point_totals.json", "w") as f:
                 json.dump(user_eco, f, indent=4)
         return user_eco
 
@@ -105,22 +105,25 @@ class Habits(commands.Cog):
 
         print(f'{ctx.author.name} inputted discipline {discipline}!')
 
-        user_eco = self.get_user_eco(ctx)
+        user_point_totals = self.get_user_eco(ctx)
 
         await self.remove_extra_roles(ctx)
 
         discipline_record = pd.read_csv(f"cogs/Habits Record/{discipline}.csv")
         # get first column of {discipline}.csv file (user ids)
         user_ids_in_discipline_file = list(discipline_record.iloc[:, 0])
-        dates_in_discipline_file = discipline_record.iloc[0, :]  # get the first row (dates)
+        # get the first row (dates)
+        dates_in_discipline_file = discipline_record.iloc[0, :]
 
         # reduced this to a list comp
-        dates_in_file_as_strings = [date for date in dates_in_discipline_file.index.values]
+        dates_in_file_as_strings = [
+            date for date in dates_in_discipline_file.index.values]
         today = datetime.datetime.today().astimezone(
             tz=timezone("US/Pacific")).date()
         today_iso_date = today.isoformat()
         # using the fact that True has an int value of 1
-        col_index_of_date_to_input = dates_in_file_as_strings.index(today_iso_date) - yesterday
+        col_index_of_date_to_input = dates_in_file_as_strings.index(
+            today_iso_date) - yesterday
 
         if str(ctx.author.id) not in user_ids_in_discipline_file:
             user_ids_in_discipline_file.append((str(ctx.author.id)))
@@ -128,8 +131,10 @@ class Habits(commands.Cog):
             newr.insert(0, (str(ctx.author.id)))
             newrs = pd.Series(newr, index=discipline_record.columns)
             newrst = newrs.to_frame().T
-            discipline_record = pd.concat([discipline_record, newrst], ignore_index=True)
-        row_index_for_user = user_ids_in_discipline_file.index(str(ctx.author.id))
+            discipline_record = pd.concat(
+                [discipline_record, newrst], ignore_index=True)
+        row_index_for_user = user_ids_in_discipline_file.index(
+            str(ctx.author.id))
 
         if discipline_record.iloc[row_index_for_user, col_index_of_date_to_input] == 1:
             eco_embed = discord.Embed(title=self.disciplines[discipline]["alr_done"]["title"],
@@ -139,18 +144,21 @@ class Habits(commands.Cog):
             return
 
         points_discipline_is_worth = self.disciplines[discipline]["points"]
-        current_points = round(user_eco[str(ctx.author.id)]["Growth Points"], 2)
+        current_points = round(
+            user_point_totals[str(ctx.author.id)]["Growth Points"], 2)
         new_points = current_points + points_discipline_is_worth
-        user_eco[str(ctx.author.id)]["Growth Points"] = round(new_points, 2)
+        user_point_totals[str(ctx.author.id)]["Growth Points"] = round(new_points, 2)
 
-        with open("cogs/eco.json", "w") as f:
-            json.dump(user_eco, f, indent=4)
+        with open("cogs/point_totals.json", "w") as f:
+            json.dump(user_point_totals, f, indent=4)
 
-        gp = user_eco[str(ctx.author.id)]["Growth Points"]
-        discipline_record.iloc[row_index_for_user, col_index_of_date_to_input] = 1
+        gp = user_point_totals[str(ctx.author.id)]["Growth Points"]
+        discipline_record.iloc[row_index_for_user,
+                               col_index_of_date_to_input] = 1
         streak = discipline_record.iloc[row_index_for_user, 1] + 1
 
-        discipline_record.to_csv(f"cogs/Habits Record/{discipline}.csv", index=False)
+        discipline_record.to_csv(
+            f"cogs/Habits Record/{discipline}.csv", index=False)
         print('discipline csv should have been saved now')
 
         self.update_all_streaks_for_discipline(discipline)
@@ -161,10 +169,11 @@ class Habits(commands.Cog):
             color=discord.Color.green()
         )
         for disc in self.disciplines:
-            user_id, longest_streak = self.get_longest_current_streak_for_discipline(disc)
+            user_id, longest_streak = self.get_longest_current_streak_for_discipline(
+                disc)
             new_embed.add_field(
-                name = f'{self.disciplines[disc]["emoji"]} {self.disciplines[disc]["long_name"]}',
-                value = f'<@{user_id}>: {int(longest_streak)} Days'
+                name=f'{self.disciplines[disc]["emoji"]} {self.disciplines[disc]["long_name"]}',
+                value=f'<@{user_id}>: {int(longest_streak)} Days'
             )
         await self.client.embed_message.edit(embed=new_embed)
 
@@ -174,7 +183,7 @@ class Habits(commands.Cog):
         eco_embed.add_field(name="Points Earned:",
                             value=f'{points_discipline_is_worth}', inline=False)
         eco_embed.add_field(name="Total Growth Points:",
-                            value=f"{user_eco[str(ctx.author.id)]['Growth Points']}", inline=False)
+                            value=f"{user_point_totals[str(ctx.author.id)]['Growth Points']}", inline=False)
         eco_embed.add_field(name=f"{self.disciplines[discipline]['long_name']} Streak:",
                             value=f"{streak} Day{'s' if streak > 1 else ''}")
         channelp = self.client.get_channel(progress_reporting_channel)
@@ -217,6 +226,16 @@ class Habits(commands.Cog):
             return
 
         arg = args[0].lower()
+
+        if arg == "allmonth":
+            if self.generate_discipline_record_for_member(context.author):
+                await context.send(file=discord.File('testfig2.png'))
+            else:
+                await context.send(f"{context.author}, you don't have any discipline records for this month!")
+            return
+
+        if arg == "today":
+            await self.today(context)
 
         detected_discipline = [discipline for discipline in self.disciplines if (
             arg in self.disciplines[discipline]["aliases"] or arg == discipline)]
@@ -442,7 +461,6 @@ class Habits(commands.Cog):
         )
         await ctx.send(f"```\n{output}\n```")
 
-    @commands.command(pass_context=True)
     async def today(self, ctx: commands.Context):
         user_id = ctx.author.id
         today_string = datetime.datetime.today().astimezone(
@@ -452,7 +470,7 @@ class Habits(commands.Cog):
             today_result = pd.read_csv(f"cogs/Habits Record/{discipline}.csv").query(
                 f'Member == "{user_id}"').filter(like=today_string, axis=1).iloc[0, 0]
             today_results[discipline] = today_result
-        disciplines_row_1  = [discipline.capitalize()
+        disciplines_row_1 = [discipline.capitalize()
                              for discipline in list(self.disciplines.keys())[::2]]
         disciplines_row_2 = [discipline.capitalize()
                              for discipline in list(self.disciplines.keys())[1::2]]
@@ -471,13 +489,6 @@ class Habits(commands.Cog):
             style=PresetStyle.double_thin_box
         )
         await ctx.send(f"```\n{output}\n```")
-
-    @commands.command(aliases=["Allmonth"], pass_context=True)
-    async def allmonth(self, ctx):
-        if self.generate_discipline_record_for_member(ctx.author):
-            await ctx.send(file=discord.File('testfig2.png'))
-        else:
-            await ctx.send(f"{ctx.author}, you don't have any discipline records for this month!")
 
     @commands.command(aliases=["Show"], pass_context=True)
     async def show(self, ctx, *usernames):
@@ -574,13 +585,8 @@ class Habits(commands.Cog):
         fig.savefig('testfig2.png', bbox_inches='tight', pad_inches=1)
         return True
 
-    @commands.command(pass_context=True)
-    async def testleaderboard(self, ctx):
-        for discipline in self.disciplines:
-            self.update_all_streaks_for_discipline(discipline)
-            await ctx.send(f"longest for {discipline} is {self.get_longest_current_streak_for_discipline(discipline)}")
-
 # make a monthly discipline challenge handler
+
 
 async def setup(client):
     await client.add_cog(Habits(client))
