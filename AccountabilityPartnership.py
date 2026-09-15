@@ -1,8 +1,9 @@
+import datetime
 import json
 import random
-import datetime
 from datetime import date
 from typing import Literal
+
 from pytz import timezone
 
 
@@ -20,7 +21,7 @@ class AccountabilityPartnership:
         stake_level: str = "low",
         started_by: int | None = None,
         new=True,
-        paused=False
+        paused=False,
     ):
         self.primary_member: int = primary_member
         self.other_member: int = other_member
@@ -53,10 +54,11 @@ class AccountabilityPartnership:
         :rtype: AccountabilityPartnership | None
         """
         print(
-            f"Fetching AccountabilityPartnership object for member with id {member_id}")
+            f"Fetching AccountabilityPartnership object for member with id {member_id}"
+        )
         with open("cogs/accountability.json", "r") as read:
             partnerships_dict = json.load(read)
-        if str(member_id) not in partnerships_dict.keys():
+        if str(member_id) not in partnerships_dict:
             return None
         partnership = partnerships_dict[str(member_id)]
         print("Stored AP:", partnership)
@@ -72,7 +74,7 @@ class AccountabilityPartnership:
             partnership["stakes"],
             partnership["started_by"],
             False,
-            partnership["paused"]
+            partnership["paused"],
         )
 
     def get_other_member_ap(self) -> "None | AccountabilityPartnership":
@@ -101,12 +103,14 @@ class AccountabilityPartnership:
             "completion_streak": self.completion_streak,
             "stakes": self.stake_level,
             "started_by": self.started_by,
-            "paused": self.paused
+            "paused": self.paused,
         }
         with open("cogs/accountability.json", "w") as write:
             json.dump(partnerships_dict, write, indent=2)
 
-    def log_today(self) -> Literal["paused", "already logged", "successful", "missing log"]:
+    def log_today(
+        self,
+    ) -> Literal["paused", "already logged", "successful", "missing log"]:
         """
         This method logs for today in the AP instance.
         It returns a status string depending on the execution of the log.
@@ -120,7 +124,11 @@ class AccountabilityPartnership:
         yesterday = today - datetime.timedelta(1)
         if self.last_date_logged == str(today):  # if today already logged
             return "already logged"
-        if self.last_date_logged == str(yesterday) or self.date_started == str(today) or self.date_resumed == str(today):
+        if (
+            self.last_date_logged == str(yesterday)
+            or self.date_started == str(today)
+            or self.date_resumed == str(today)
+        ):
             self.last_date_logged = str(today)
             self.log_streak += 1
 
@@ -132,12 +140,14 @@ class AccountabilityPartnership:
             self.save_partnership()
             other_ap.save_partnership()
 
-            print(f"Saved partnership after updating last_date_logged")
+            print("Saved partnership after updating last_date_logged")
             self.disburse_points()
             return "successful"
         return "missing log"
 
-    def log_yesterday(self) -> Literal["paused", "already logged", "successful", "missing log"]:
+    def log_yesterday(
+        self,
+    ) -> Literal["paused", "already logged", "successful", "missing log"]:
         """
         Analog to log_today, but for the previous day.
 
@@ -151,18 +161,24 @@ class AccountabilityPartnership:
         last_date_logged = self.date_obj_from_str(self.last_date_logged)
         if last_date_logged >= yesterday:
             return "already logged"
-        if last_date_logged == yesterday - datetime.timedelta(1) or self.date_started == str(yesterday) or self.date_resumed == str(yesterday):
+        if (
+            last_date_logged == yesterday - datetime.timedelta(1)
+            or self.date_started == str(yesterday)
+            or self.date_resumed == str(yesterday)
+        ):
             self.last_date_logged = str(yesterday)
             self.log_streak += 1
 
             other_ap = self.get_other_member_ap()
-            if date.fromisoformat(self.last_date_logged) <= self.date_obj_from_str(other_ap.last_date_logged):
+            if date.fromisoformat(self.last_date_logged) <= self.date_obj_from_str(
+                other_ap.last_date_logged
+            ):
                 self.completion_streak += 1
                 other_ap.completion_streak += 1
 
             self.save_partnership()
             other_ap.save_partnership()
-            print(f"Saved partnership after updating last_date_logged")
+            print("Saved partnership after updating last_date_logged")
             self.disburse_points()
             return "successful"
         return "missing log"
@@ -187,15 +203,18 @@ class AccountabilityPartnership:
         other_ap = self.get_other_member_ap()
         if other_ap is None:
             print(
-                f"There has been an error in update_last_date_completed inside the AP for user {self.primary_member}.")
+                f"There has been an error in update_last_date_completed inside the AP for user {self.primary_member}."
+            )
             return
         elif self.last_date_logged is None or other_ap.last_date_logged is None:
             return
         else:  # neither self.last_date_logged nor other_ap.last_date_logged are None
             self.last_date_completed = min(
-                self.last_date_logged, other_ap.last_date_logged)
+                self.last_date_logged, other_ap.last_date_logged
+            )
             other_ap.last_date_completed = min(
-                self.last_date_logged, other_ap.last_date_logged)
+                self.last_date_logged, other_ap.last_date_logged
+            )
         print(f"self.last_date_completed is now {self.last_date_completed}")
         self.save_partnership()
         other_ap.save_partnership()
@@ -217,9 +236,10 @@ class AccountabilityPartnership:
         self.add_points_to_primary_member(points_to_add)
         self.get_other_member_ap().add_points_to_primary_member(points_to_add)
         print(
-            f"Added {points_to_add} point to {self.primary_member} and {self.other_member}")
+            f"Added {points_to_add} point to {self.primary_member} and {self.other_member}"
+        )
 
-    def add_points_to_primary_member(self, points_to_add: int | float):
+    def add_points_to_primary_member(self, points_to_add: float):
         """
         This method adds a given amount of points to a member with given id.
 
@@ -258,8 +278,9 @@ class AccountabilityPartnership:
         """
         if self.paused:
             self.paused = False
-            self.date_resumed = str(datetime.datetime.now(
-                timezone("US/Pacific")).date())
+            self.date_resumed = str(
+                datetime.datetime.now(timezone("US/Pacific")).date()
+            )
             self.save_partnership()
             self.get_other_member_ap().resume_partnership()
             return True
@@ -275,8 +296,7 @@ class AccountabilityPartnership:
             read.close()
             print(f"Read accountability.json: {all_partnerships}")
         del all_partnerships[str(self.primary_member)]
-        print(
-            f"Deleted this partnership, now all_partnerships is {all_partnerships}.")
+        print(f"Deleted this partnership, now all_partnerships is {all_partnerships}.")
         with open("cogs/accountability.json", "w") as write:
             print("Dumping accountability.json now.")
             json.dump(all_partnerships, write, indent=2)
