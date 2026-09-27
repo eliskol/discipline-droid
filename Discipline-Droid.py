@@ -72,11 +72,11 @@ async def send_leaderboard_message():
         previous_message = await leaderboard_channel.fetch_message(leaderboard_channel.last_message_id)
         if previous_message.author.id == client.application_id and previous_message.created_at.date() == datetime.datetime.now(datetime.timezone.utc).date():
             await previous_message.delete()
-    except discord.NotFound or discord.Forbidden or discord.HTTPException:
+    except (discord.NotFound, discord.Forbidden, discord.HTTPException):
         print("unable to find the last message in the leaderboard channel")
     print("send_leaderboard_message: just attempted to fetch the previous message in the leaderboard channel")
 
-    client.embed_message = await leaderboard_channel.send(embed=embed)
+    client.leaderboard_message = await leaderboard_channel.send(embed=embed)
     print("send_leaderboard_message: reached the end of the method")
 
 # Function to send the message at startup
@@ -317,7 +317,7 @@ async def on_reaction_add(reaction, user):
 
 async def load():
     for filename in os.listdir("./cogs"):
-        if filename.endswith("Economy.py") or filename.endswith("ping.py") or filename.endswith("Accountability.py") or filename.endswith("Utilities.py"):
+        if filename.endswith(("Habits.py", "ping.py", "Accountability.py", "Utilities.py")):
             await client.load_extension(f"cogs.{filename[:-3]}")
 
 

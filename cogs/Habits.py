@@ -89,8 +89,7 @@ class Habits(commands.Cog):
     @staticmethod
     def current_streak(row: pd.Series):
         yesterday_date_string = (
-            (datetime.datetime.today() - datetime.timedelta(days=1))
-            .astimezone(tz=timezone("US/Pacific"))
+            (datetime.datetime.now(tz=timezone("US/Pacific")) - datetime.timedelta(days=1))
             .date()
             .isoformat()
         )
@@ -141,7 +140,7 @@ class Habits(commands.Cog):
         dates_in_file_as_strings = [
             date for date in dates_in_discipline_file.index.values
         ]
-        today = datetime.datetime.today().astimezone(tz=timezone("US/Pacific")).date()
+        today = datetime.datetime.now(tz=timezone("US/Pacific")).date()
         today_iso_date = today.isoformat()
         # using the fact that True has an int value of 1
         col_index_of_date_to_input = (
@@ -375,7 +374,7 @@ class Habits(commands.Cog):
 
         dateff = [date for date in datef.index.values]
         # await ctx.send("just made date array")
-        today = datetime.datetime.today().astimezone(tz=timezone("US/Pacific")).date()
+        today = datetime.datetime.now(tz=timezone("US/Pacific")).date()
         iso_date = today.isoformat()
         weekday = today.isoweekday()
         today_index = dateff.index(iso_date)
@@ -431,7 +430,7 @@ class Habits(commands.Cog):
         datef = record.iloc[0, :]
         dateff = [date for date in datef.index.values]
 
-        today = datetime.datetime.today().astimezone(tz=timezone("US/Pacific")).date()
+        today = datetime.datetime.now(tz=timezone("US/Pacific")).date()
         iso_date = today.isoformat()
         month_days = list(
             range(1, int(iso_date.partition("-")[2].partition("-")[2]) + 1)
@@ -537,8 +536,7 @@ class Habits(commands.Cog):
     async def today(self, ctx: commands.Context):
         user_id = ctx.author.id
         today_string = (
-            datetime.datetime.today()
-            .astimezone(tz=timezone("US/Pacific"))
+            datetime.datetime.now(tz=timezone("US/Pacific"))
             .date()
             .isoformat()
         )
@@ -608,11 +606,10 @@ class Habits(commands.Cog):
     def generate_discipline_record_for_member(self, member, last_mo=False):
         user_id = member.id
         this_month_time = (
-            datetime.datetime.today().astimezone(tz=timezone("US/Pacific")).date()
+            datetime.datetime.now(tz=timezone("US/Pacific")).date()
             if last_mo is False
             else (
-                datetime.datetime.today()
-                .astimezone(tz=timezone("US/Pacific"))
+                datetime.datetime.now(tz=timezone("US/Pacific"))
                 .replace(day=1)
                 - datetime.timedelta(days=1)
             ).date()
