@@ -39,6 +39,7 @@ REACTIONS = {disciplines[discipline]["emoji"]: discipline for discipline in disc
 async def on_ready():
     for discipline in disciplines:
         client.get_cog("Habits").update_all_streaks_for_discipline(discipline)
+    print("on_ready was called")
     await send_leaderboard_message()
     print("boutta call send_startup_message")
     await send_startup_message()  # Send a message at startup
@@ -50,6 +51,7 @@ async def on_ready():
 async def send_leaderboard_message():
     leaderboard_channel = client.get_channel(leaderboard_channel_id)
     if leaderboard_channel:
+        print('send_leaderboard_message: creating leaderboard embed right now')
         embed = discord.Embed(
             title="🏆 Self-Improvement Club Leaders 🏆",
             description="Here we commemorate SIC members for their discipline! Highest current streaks:",
@@ -66,18 +68,16 @@ async def send_leaderboard_message():
             )
 
     print(f"last message id is {leaderboard_channel.last_message_id}")
-    previous_message = await leaderboard_channel.fetch_message(
-        leaderboard_channel.last_message_id
-    )
-    if (
-        previous_message.author.id == client.application_id
-        and previous_message.created_at.date()
-        == datetime.datetime.now(datetime.timezone.utc).date()
-    ):
-        await previous_message.delete()
+    try:
+        previous_message = await leaderboard_channel.fetch_message(leaderboard_channel.last_message_id)
+        if previous_message.author.id == client.application_id and previous_message.created_at.date() == datetime.datetime.now(datetime.timezone.utc).date():
+            await previous_message.delete()
+    except discord.NotFound or discord.Forbidden or discord.HTTPException:
+        print("unable to find the last message in the leaderboard channel")
+    print("send_leaderboard_message: just attempted to fetch the previous message in the leaderboard channel")
 
-    client.leaderboard_message = await leaderboard_channel.send(embed=embed)
-
+    client.embed_message = await leaderboard_channel.send(embed=embed)
+    print("send_leaderboard_message: reached the end of the method")
 
 # Function to send the message at startup
 
@@ -317,9 +317,7 @@ async def on_reaction_add(reaction, user):
 
 async def load():
     for filename in os.listdir("./cogs"):
-        if (
-            filename.endswith(("Habits.py", "ping.py", "Accountability.py"))
-        ):
+        if filename.endswith("Economy.py") or filename.endswith("ping.py") or filename.endswith("Accountability.py") or filename.endswith("Utilities.py"):
             await client.load_extension(f"cogs.{filename[:-3]}")
 
 
